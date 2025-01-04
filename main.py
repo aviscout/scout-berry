@@ -4,7 +4,7 @@ from signal import pause
 class GPIOHandler:
     def __init__(self, input_pins):
         self.input_pins = input_pins
-        self.buttons = list()
+        self.buttons = []
 
         for label, pin in input_pins.items():
             try:
