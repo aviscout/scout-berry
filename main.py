@@ -4,7 +4,16 @@ from signal import pause
 class GPIOHandler:
     def __init__(self, input_pins):
         self.input_pins = input_pins
-        self.buttons = {label: Button(pin, pull_up=False) for label, pin in input_pins.items()}
+        self.buttons = list()
+
+        for label, pin in input_pins.items():
+            try:
+                self.buttons.append(Button(pin, pull_up=False))
+            except Exception as e:
+                print(f"Error initializing {label}: {e}")
+
+
+        # self.buttons = {label: Button(pin, pull_up=False) for label, pin in input_pins.items()}
         self.current_bearing = None
         self.current_distance = None
         self.previous_distance = None
