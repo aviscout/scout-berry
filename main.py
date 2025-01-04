@@ -14,8 +14,8 @@ class GPIOHandler:
             try:
                 btn = Button(pin, pull_up=False)
                 # lambda: signal_received("hello", 42)
-                btn.when_pressed = lambda: self.signal_lost(pin,label)
-                btn.when_released = lambda: self.signal_received(pin,label)
+                btn.when_pressed = lambda pin=pin, label=label: self.signal_lost(pin, label)
+                btn.when_released = lambda pin=pin, label=label: self.signal_received(pin, label)
 
                 self.buttons.append(btn)
             except Exception as e:
@@ -97,6 +97,17 @@ class GPIOHandler:
                     self.current_distance = abs(self.current_distance)  # Make distance positive
 
         print(f"Updated State: Bearing: {self.current_bearing}, Distance: {self.current_distance}, Proximity: {self.proximity}")
+
+
+class SignalHandler:
+    def __init__(self, param1, param2):
+        self.param1 = param1
+        self.param2 = param2
+        self.button = Button(17)
+        self.button.when_pressed = self.signal_received
+
+    def signal_received(self):
+        print(f"Signal received with params: {self.param1}, {self.param2}")
 
 if __name__ == "__main__":
     INPUT_PINS = {
