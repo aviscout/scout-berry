@@ -13,8 +13,9 @@ class GPIOHandler:
         for label, pin in input_pins.items():
             try:
                 btn = Button(pin, pull_up=False)
-                btn.when_pressed = self.signal_lost
-                btn.when_released = self.signal_receved
+                # lambda: signal_received("hello", 42)
+                btn.when_pressed = lambda: self.signal_lost(pin,label)
+                btn.when_released = lambda: self.signal_received(pin,label)
 
                 self.buttons.append(btn)
             except Exception as e:
@@ -46,12 +47,12 @@ class GPIOHandler:
         #     print(str(e))
 
     @staticmethod
-    def signal_lost():
-        print("Signal lost")
+    def signal_lost(port_no, label):
+        print(f"Signal LOST @ {port_no}")
 
     @staticmethod
-    def signal_receved(self):
-        print("Signal received")
+    def signal_received(port_no, label):
+        print(f"Signal RECEIVED from {label} @ {port_no}")
 
 
     def attach_callbacks(self):
@@ -101,7 +102,7 @@ class GPIOHandler:
 
 if __name__ == "__main__":
     INPUT_PINS = {
-        'B270': 18,  # Updated pin numbers (BCM)
+        'B270': 17,  # Updated pin numbers (BCM)
         'B325': 27,
         'B0': 22,
         'B45': 5,
