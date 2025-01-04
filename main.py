@@ -1,18 +1,24 @@
-from gpiozero import Button
+from gpiozero.pins.mock import MockFactory
+from gpiozero import Button, Device
 from signal import pause
 
 class GPIOHandler:
 
     def __init__(self, input_pins):
-        self.buttons = None
+        # Device.pin_factory = MockFactory()
+
+        self.buttons = []
         self.input_pins = input_pins
 
         for label, pin in input_pins.items():
             try:
-                self.buttons.append(Button(pin, pull_up=False))
+                btn = Button(pin, pull_up=False)
+                btn.when_pressed = self.signal_lost
+                btn.when_released = self.signal_receved
+
+                self.buttons.append(btn)
             except Exception as e:
                 print(f"Error initializing {label}: {e}")
-
 
         # self.buttons = {label: Button(pin, pull_up=False) for label, pin in input_pins.items()}
         self.current_bearing = None
@@ -34,7 +40,19 @@ class GPIOHandler:
             (1, 1, 1, 1, 0, 1, 1): 9   # Representation of 9
         }
 
-        self.attach_callbacks()
+        # try:
+        #     self.attach_callbacks()
+        # except Exception as e:
+        #     print(str(e))
+
+    @staticmethod
+    def signal_lost():
+        print("Signal lost")
+
+    @staticmethod
+    def signal_receved(self):
+        print("Signal received")
+
 
     def attach_callbacks(self):
         for label, button in self.buttons.items():
