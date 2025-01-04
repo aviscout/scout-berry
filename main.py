@@ -46,12 +46,10 @@ class GPIOHandler:
         # except Exception as e:
         #     print(str(e))
 
-    @staticmethod
-    def signal_lost(port_no, label):
+    def signal_lost(self, port_no, label):
         print(f"Signal LOST @ {port_no}")
 
-    @staticmethod
-    def signal_received(port_no, label):
+    def signal_received(self, port_no, label):
         print(f"Signal RECEIVED from {label} @ {port_no}")
 
 
