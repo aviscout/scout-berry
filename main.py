@@ -101,7 +101,7 @@ class GPIOHandler:
 
 if __name__ == "__main__":
     INPUT_PINS = {
-        'B270': 17,  # Updated pin numbers (BCM)
+        'B270': 18,  # Updated pin numbers (BCM)
         'B325': 27,
         'B0': 22,
         'B45': 5,
