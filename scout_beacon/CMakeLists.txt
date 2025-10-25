@@ -218,18 +218,31 @@ endif ()
 # =============================================================================
 
 # Find and link OPUS library
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../common/3rdparty)
-find_package(OPUS REQUIRED)
-if (OPUS_FOUND)
+find_library(OPUS_LIBRARY opus
+    PATHS
+    /usr/local/lib
+    /usr/lib
+    /usr/lib/aarch64-linux-gnu
+)
+
+find_path(OPUS_INCLUDE_DIR opus.h
+    PATHS
+    /usr/local/include/opus
+    /usr/include/opus
+    /opt/local/include
+    /opt/include
+)
+
+if (OPUS_LIBRARY AND OPUS_INCLUDE_DIR)
     message(STATUS "Found OPUS installed in the system")
     message(STATUS " - Includes: ${OPUS_INCLUDE_DIR}")
     message(STATUS " - Libraries: ${OPUS_LIBRARY}")
 
     add_definitions(-DOPUS_INSTALLED)
-    target_link_libraries(${PROJECT_NAME} /usr/local/lib/libopus.a)
+    target_link_libraries(${PROJECT_NAME} ${OPUS_LIBRARY})
 else ()
     message(STATUS "Cannot Find OPUS")
-endif (OPUS_FOUND)
+endif ()
 
 # =============================================================================
 # LIBUSB Library Configuration
@@ -248,17 +261,31 @@ endif (OPUS_FOUND)
 # =============================================================================
 
 # Find and link LIBUSB library
-find_package(LIBUSB REQUIRED)
-if (LIBUSB_FOUND)
+find_library(LIBUSB_LIBRARY usb-1.0
+    PATHS
+    /usr/local/lib
+    /usr/lib
+    /usr/lib/aarch64-linux-gnu
+)
+
+find_path(LIBUSB_INCLUDE_DIR libusb.h
+    PATHS
+    /usr/local/include
+    /usr/include
+    /opt/local/include
+    /opt/include
+)
+
+if (LIBUSB_LIBRARY AND LIBUSB_INCLUDE_DIR)
     message(STATUS "Found LIBUSB installed in the system")
     message(STATUS " - Includes: ${LIBUSB_INCLUDE_DIR}")
     message(STATUS " - Libraries: ${LIBUSB_LIBRARY}")
 
     add_definitions(-DLIBUSB_INSTALLED)
-    target_link_libraries(${PROJECT_NAME} usb-1.0)
+    target_link_libraries(${PROJECT_NAME} ${LIBUSB_LIBRARY})
 else ()
     message(STATUS "Cannot Find LIBUSB")
-endif (LIBUSB_FOUND)
+endif ()
 
 # =============================================================================
 # System Library Configuration
