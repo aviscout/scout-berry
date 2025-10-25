@@ -1,12 +1,68 @@
 /**
  ********************************************************************
  * @file    main.c
- * @brief   Scout Beacon Application - Main entry point
+ * @brief   Scout Beacon Application - Main entry point for AviScout system
  *
  * @copyright (c) 2024 Scout Berry. All rights reserved.
  *
- * This application integrates avalanche beacon detection with DJI PSDK
- * for autonomous drone rescue operations.
+ * @details This application integrates avalanche beacon detection with DJI PSDK
+ *          for autonomous drone rescue operations. The system reads beacon
+ *          signals from GPIO pins on a Raspberry Pi and transmits the data
+ *          to a Mavic 3 drone via PSDK low-speed data channel.
+ *
+ * @author  Scout Berry Development Team
+ * @date    2024
+ * @version 1.0.0
+ *
+ * @section Features
+ * - Real-time avalanche beacon detection via GPIO interface
+ * - DJI PSDK integration for drone communication
+ * - JSON-formatted data transmission
+ * - Mock mode for testing without physical hardware
+ * - Comprehensive logging and error handling
+ * - Signal strength (RSSI) monitoring
+ * - Bearing and distance measurement
+ *
+ * @section Hardware Requirements
+ * - Raspberry Pi 4 Model B with 64-bit OS
+ * - E-Port Development Kit for drone connection
+ * - Avalanche beacon receiver connected to GPIO pins
+ * - Mavic 3 Enterprise drone
+ *
+ * @section GPIO Configuration
+ * - Bearing pins: 17, 27, 22, 5, 6 (270°, 325°, 0°, 45°, 90°)
+ * - 7-segment display: 13, 19, 26, 21, 20, 16, 12, 25 (A-G, DP)
+ * - Digit control: 8, 7 (enable pins)
+ * - RSSI input: 18 (signal strength)
+ *
+ * @section Usage
+ * @code
+ * // Run with real hardware
+ * sudo ./scout_beacon
+ * 
+ * // Run with mock data for testing
+ * sudo ./scout_beacon --mock
+ * 
+ * // Run with debug output
+ * sudo ./scout_beacon --debug
+ * 
+ * // Run with both mock and debug
+ * sudo ./scout_beacon --mock --debug
+ * @endcode
+ *
+ * @section Data Format
+ * The application transmits JSON-formatted beacon data:
+ * @code
+ * {
+ *   "event": "BEACON_DETECTED",
+ *   "timestamp": 1234567890,
+ *   "bearing": 45,
+ *   "distance": 25.3,
+ *   "signal_strength": -67,
+ *   "bearing_valid": true,
+ *   "distance_valid": true
+ * }
+ * @endcode
  *
  *********************************************************************
  */
@@ -87,6 +143,58 @@ static void ScoutBeacon_PrintUsage(const char* program_name);
 static bool ScoutBeacon_ParseArguments(int argc, char** argv, bool* mock_mode, bool* debug_mode);
 
 /* Exported functions definition ---------------------------------------------*/
+
+/**
+ * @brief Main entry point for Scout Beacon Application
+ * 
+ * @details This function initializes the DJI PSDK, configures GPIO interfaces,
+ *          and starts the main application loop for beacon detection and data
+ *          transmission. The application supports both real hardware operation
+ *          and mock mode for testing.
+ * 
+ * @param argc Number of command line arguments
+ * @param argv Array of command line argument strings
+ * 
+ * @return int Exit status:
+ *         - 0: Success
+ *         - 1: Command line argument error
+ *         - DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR: System initialization error
+ * 
+ * @section Command Line Options
+ * - --mock: Enable mock mode for testing without physical hardware
+ * - --debug: Enable debug output for GPIO operations
+ * - --help: Show usage information
+ * 
+ * @section Initialization Sequence
+ * 1. Parse command line arguments
+ * 2. Setup signal handlers for graceful shutdown
+ * 3. Prepare system environment (OSAL, HAL, Logger)
+ * 4. Fill in user information (App ID, Key, etc.)
+ * 5. Initialize DJI PSDK core
+ * 6. Get aircraft information
+ * 7. Set application alias and version
+ * 8. Initialize beacon GPIO interface
+ * 9. Register beacon detection callback
+ * 10. Initialize PSDK modules
+ * 11. Start SDK application
+ * 12. Enter main application loop
+ * 
+ * @section Error Handling
+ * The function includes comprehensive error handling for:
+ * - Invalid command line arguments
+ * - System environment preparation failures
+ * - PSDK initialization errors
+ * - GPIO interface failures
+ * - Module initialization errors
+ * 
+ * @section Signal Handling
+ * The application responds to SIGTERM and SIGINT signals for graceful shutdown,
+ * ensuring proper cleanup of resources and GPIO interfaces.
+ * 
+ * @see ScoutBeacon_ParseArguments()
+ * @see ScoutBeacon_InitializeModules()
+ * @see ScoutBeacon_MainLoop()
+ */
 int main(int argc, char **argv)
 {
     T_DjiReturnCode returnCode;
@@ -240,6 +348,32 @@ int main(int argc, char **argv)
 
 /* Private functions ---------------------------------------------------------*/
 
+/**
+ * @brief Initialize PSDK modules for beacon data transmission
+ * 
+ * @details This function initializes the required DJI PSDK modules based on
+ *          the configuration defined in dji_sdk_config.h. The modules are
+ *          initialized in a specific order to ensure proper dependencies.
+ * 
+ * @section Enabled Modules
+ * - CONFIG_MODULE_SAMPLE_DATA_TRANSMISSION_ON: Low-speed data channel for beacon data
+ * - CONFIG_MODULE_SAMPLE_FC_SUBSCRIPTION_ON: Flight controller data subscription
+ * - CONFIG_MODULE_SAMPLE_POWER_MANAGEMENT_ON: Power management and monitoring
+ * 
+ * @section Error Handling
+ * Each module initialization is checked for success. If a module fails to
+ * initialize, an error is logged but the application continues with other
+ * modules. This ensures maximum functionality even if some modules fail.
+ * 
+ * @section Module Dependencies
+ * - Data transmission module provides the low-speed data channel for beacon data
+ * - FC subscription module enables flight controller data access
+ * - Power management module monitors battery and power status
+ * 
+ * @see DjiTest_DataTransmissionStartService()
+ * @see DjiTest_FcSubscriptionStartService()
+ * @see DjiTest_PowerManagementStartService()
+ */
 static void ScoutBeacon_InitializeModules(void)
 {
     T_DjiReturnCode returnCode;
@@ -272,6 +406,50 @@ static void ScoutBeacon_InitializeModules(void)
 #endif
 }
 
+/**
+ * @brief Main application loop for beacon detection and data transmission
+ * 
+ * @details This function implements the main application loop that continuously
+ *          monitors for beacon signals, processes the data, and transmits it
+ *          via the DJI PSDK low-speed data channel. The loop runs at a fixed
+ *          interval defined by BEACON_UPDATE_INTERVAL_MS.
+ * 
+ * @section Loop Operation
+ * 1. Read current beacon data from GPIO interface
+ * 2. Check if beacon signal is detected
+ * 3. If beacon detected:
+ *    - Log beacon detection event
+ *    - Send beacon data via PSDK
+ *    - Log beacon data for monitoring
+ *    - Update context with latest data
+ * 4. If beacon lost:
+ *    - Log beacon signal loss
+ *    - Update detection state
+ * 5. Sleep for update interval
+ * 
+ * @section Data Processing
+ * The function processes beacon data including:
+ * - Bearing measurement (degrees)
+ * - Distance measurement (meters)
+ * - Signal strength (RSSI in dBm)
+ * - Data validity flags
+ * - Timestamp information
+ * 
+ * @section Performance
+ * - Update interval: 1000ms (1 second)
+ * - Non-blocking GPIO reads
+ * - Efficient data transmission
+ * - Minimal CPU usage during sleep
+ * 
+ * @section Error Handling
+ * - GPIO read failures are handled gracefully
+ * - Invalid beacon data is filtered out
+ * - Transmission failures are logged but don't stop the loop
+ * 
+ * @see BeaconGpio_ReadBeaconData()
+ * @see ScoutBeacon_SendBeaconData()
+ * @see ScoutBeacon_LogBeaconData()
+ */
 static void ScoutBeacon_MainLoop(void)
 {
     s_context.running = true;
@@ -308,6 +486,41 @@ static void ScoutBeacon_MainLoop(void)
     }
 }
 
+/**
+ * @brief Callback function for beacon detection events
+ * 
+ * @details This function is called by the GPIO interface when a beacon signal
+ *          is detected. It provides immediate processing and transmission of
+ *          beacon data without waiting for the main loop interval.
+ * 
+ * @param beacon_data Pointer to beacon data structure containing:
+ *                   - bearing: Bearing in degrees (0, 45, 90, 270, 325)
+ *                   - distance: Distance in meters
+ *                   - signal_strength: RSSI value in dBm
+ *                   - timestamp: Unix timestamp
+ *                   - signal_detected: Detection flag
+ *                   - bearing_valid: Bearing validity flag
+ *                   - distance_valid: Distance validity flag
+ * 
+ * @section Callback Behavior
+ * - Validates input parameters
+ * - Logs beacon detection event with bearing and distance
+ * - Immediately sends beacon data via PSDK
+ * - Provides real-time response to beacon detection
+ * 
+ * @section Error Handling
+ * - Null pointer check for beacon_data
+ * - Early return if invalid data
+ * - Transmission errors are handled by ScoutBeacon_SendBeaconData()
+ * 
+ * @section Performance
+ * - Minimal processing overhead
+ * - Immediate data transmission
+ * - Non-blocking operation
+ * 
+ * @see ScoutBeacon_SendBeaconData()
+ * @see BeaconGpio_RegisterCallback()
+ */
 static void ScoutBeacon_BeaconCallback(BeaconData_t* beacon_data)
 {
     if (!beacon_data) {
@@ -321,6 +534,63 @@ static void ScoutBeacon_BeaconCallback(BeaconData_t* beacon_data)
     ScoutBeacon_SendBeaconData(beacon_data);
 }
 
+/**
+ * @brief Send beacon data via DJI PSDK low-speed data channel
+ * 
+ * @details This function formats beacon data into JSON format and transmits it
+ *          via the DJI PSDK low-speed data channel. The data is formatted as
+ *          a structured JSON object containing all beacon information.
+ * 
+ * @param beacon_data Pointer to beacon data structure to transmit
+ * 
+ * @return T_DjiReturnCode Return code:
+ *         - DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS: Transmission successful
+ *         - DJI_ERROR_SYSTEM_MODULE_CODE_INVALID_PARAMETER: Invalid input data
+ *         - Other DJI error codes: Transmission failure
+ * 
+ * @section JSON Data Format
+ * The function creates a JSON object with the following structure:
+ * @code
+ * {
+ *   "event": "BEACON_DETECTED",
+ *   "timestamp": 1234567890,
+ *   "bearing": 45,
+ *   "distance": 25.3,
+ *   "signal_strength": -67,
+ *   "bearing_valid": true,
+ *   "distance_valid": true
+ * }
+ * @endcode
+ * 
+ * @section Data Fields
+ * - event: Always "BEACON_DETECTED" for beacon events
+ * - timestamp: Unix timestamp of detection
+ * - bearing: Bearing in degrees (0, 45, 90, 270, 325)
+ * - distance: Distance in meters (float with 1 decimal place)
+ * - signal_strength: RSSI value in dBm
+ * - bearing_valid: Boolean indicating bearing validity
+ * - distance_valid: Boolean indicating distance validity
+ * 
+ * @section Transmission
+ * - Uses DJI_LOW_SPEED_DATA_CHANNEL_INDEX_0 for transmission
+ * - Data is sent as UTF-8 encoded JSON string
+ * - Maximum data size is BEACON_DATA_MAX_SIZE (256 bytes)
+ * - Transmission is synchronous and blocking
+ * 
+ * @section Error Handling
+ * - Input validation for null pointer
+ * - JSON formatting with proper escaping
+ * - Buffer size validation
+ * - Transmission error logging
+ * 
+ * @section Performance
+ * - JSON formatting is efficient with snprintf
+ * - Minimal memory allocation
+ * - Fast transmission via PSDK
+ * 
+ * @see DjiLowSpeedDataChannel_SendData()
+ * @see ScoutBeacon_LogBeaconData()
+ */
 static T_DjiReturnCode ScoutBeacon_SendBeaconData(const BeaconData_t* beacon_data)
 {
     if (!beacon_data) {
