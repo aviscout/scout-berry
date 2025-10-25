@@ -123,6 +123,25 @@ int8_t BeaconGpio_GetSignalStrength(void);
  */
 void BeaconGpio_SetDebug(bool enable);
 
+/* Mock mode functions for testing */
+/**
+ * @brief Enable mock mode for testing without physical hardware
+ * @return 0 on success, -1 on failure
+ */
+int BeaconGpio_EnableMockMode(void);
+
+/**
+ * @brief Disable mock mode and return to real GPIO reading
+ * @return 0 on success, -1 on failure
+ */
+int BeaconGpio_DisableMockMode(void);
+
+/**
+ * @brief Check if mock mode is currently enabled
+ * @return true if mock mode enabled, false otherwise
+ */
+bool BeaconGpio_IsMockModeEnabled(void);
+
 #ifdef __cplusplus
 }
 #endif

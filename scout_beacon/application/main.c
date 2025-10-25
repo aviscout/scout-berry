@@ -50,6 +50,11 @@
 #define BEACON_DATA_MAX_SIZE            (256)
 #define BEACON_UPDATE_INTERVAL_MS       (1000)  // 1 second
 
+/* Command line options */
+#define OPTION_MOCK_MODE                "--mock"
+#define OPTION_HELP                     "--help"
+#define OPTION_DEBUG                    "--debug"
+
 /* Private types -------------------------------------------------------------*/
 typedef struct {
     pthread_t monitor_thread;
@@ -78,6 +83,8 @@ static T_DjiReturnCode ScoutBeacon_SendBeaconData(const BeaconData_t* beacon_dat
 static void ScoutBeacon_LogBeaconData(const BeaconData_t* beacon_data);
 static void ScoutBeacon_InitializeModules(void);
 static void ScoutBeacon_MainLoop(void);
+static void ScoutBeacon_PrintUsage(const char* program_name);
+static bool ScoutBeacon_ParseArguments(int argc, char** argv, bool* mock_mode, bool* debug_mode);
 
 /* Exported functions definition ---------------------------------------------*/
 int main(int argc, char **argv)
@@ -92,13 +99,18 @@ int main(int argc, char **argv)
         .modifyVersion = 0,
         .debugVersion = 0,
     };
-
-    USER_UTIL_UNUSED(argc);
-    USER_UTIL_UNUSED(argv);
+    
+    bool mock_mode = false;
+    bool debug_mode = false;
 
     printf("=== Scout Beacon Application Starting ===\n");
     printf("AviScout - Avalanche Beacon Detection System\n");
     printf("Copyright (c) 2024 Scout Berry\n\n");
+
+    // Parse command line arguments
+    if (!ScoutBeacon_ParseArguments(argc, argv, &mock_mode, &debug_mode)) {
+        return 1;
+    }
 
     // Setup signal handlers for graceful shutdown
     signal(SIGTERM, DjiUser_NormalExitHandler);
@@ -181,7 +193,23 @@ int main(int argc, char **argv)
     }
 
     // Enable debug output for GPIO
-    BeaconGpio_SetDebug(true);
+    BeaconGpio_SetDebug(debug_mode);
+    
+    // Enable mock mode if requested
+    if (mock_mode) {
+        if (BeaconGpio_EnableMockMode() != 0) {
+            USER_LOG_ERROR("Failed to enable mock mode");
+            BeaconGpio_Cleanup();
+            return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
+        }
+        USER_LOG_INFO("Mock mode enabled - generating simulated beacon data");
+        printf("MOCK MODE: Generating simulated avalanche beacon signals\n");
+        printf("Mock data will be transmitted every 5 seconds\n\n");
+    } else {
+        USER_LOG_INFO("Real GPIO mode - monitoring physical beacon receiver");
+        printf("REAL MODE: Monitoring physical avalanche beacon receiver\n");
+        printf("Connect beacon receiver to GPIO pins as configured\n\n");
+    }
 
     /*!< Step 5: Initialize PSDK modules */
     ScoutBeacon_InitializeModules();
@@ -478,4 +506,41 @@ static void DjiUser_NormalExitHandler(int signalNum)
         fclose(s_djiLogFileCnt);
         s_djiLogFileCnt = NULL;
     }
+}
+
+static void ScoutBeacon_PrintUsage(const char* program_name)
+{
+    printf("Usage: %s [OPTIONS]\n\n", program_name);
+    printf("Options:\n");
+    printf("  %s        Enable mock mode for testing without physical hardware\n", OPTION_MOCK_MODE);
+    printf("  %s         Enable debug output for GPIO operations\n", OPTION_DEBUG);
+    printf("  %s          Show this help message\n\n", OPTION_HELP);
+    printf("Examples:\n");
+    printf("  %s                    # Run with real GPIO hardware\n", program_name);
+    printf("  %s %s              # Run with mock data for testing\n", program_name, OPTION_MOCK_MODE);
+    printf("  %s %s %s         # Run with mock data and debug output\n", program_name, OPTION_MOCK_MODE, OPTION_DEBUG);
+    printf("\n");
+}
+
+static bool ScoutBeacon_ParseArguments(int argc, char** argv, bool* mock_mode, bool* debug_mode)
+{
+    *mock_mode = false;
+    *debug_mode = false;
+    
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], OPTION_HELP) == 0) {
+            ScoutBeacon_PrintUsage(argv[0]);
+            return false;
+        } else if (strcmp(argv[i], OPTION_MOCK_MODE) == 0) {
+            *mock_mode = true;
+        } else if (strcmp(argv[i], OPTION_DEBUG) == 0) {
+            *debug_mode = true;
+        } else {
+            printf("Unknown option: %s\n", argv[i]);
+            ScoutBeacon_PrintUsage(argv[0]);
+            return false;
+        }
+    }
+    
+    return true;
 }

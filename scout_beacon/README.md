@@ -90,8 +90,34 @@ sudo usermod -a -G gpio aviscout
 
 ### Running the Application
 
+#### Command Line Options
+
 ```bash
+# Run with real GPIO hardware
 sudo ./scout_beacon
+
+# Run with mock data for testing (recommended)
+sudo ./scout_beacon --mock
+
+# Run with mock data and debug output
+sudo ./scout_beacon --mock --debug
+
+# Show help and options
+./scout_beacon --help
+```
+
+#### Mock Mode Testing
+
+The application includes comprehensive mock beacon data for testing without physical hardware:
+
+- **8 realistic beacon patterns** cycling every 5 seconds
+- **Realistic bearing, distance, and RSSI values**
+- **Automatic data transmission** via PSDK
+- **Debug output** for monitoring
+
+```bash
+# Test with mock data
+sudo ./scout_beacon --mock --debug
 ```
 
 ### Expected Output
@@ -124,6 +150,61 @@ The application transmits JSON-formatted beacon data:
   "bearing_valid": true,
   "distance_valid": true
 }
+```
+
+## Monitoring and Testing
+
+### Mock Data Testing (Recommended)
+
+The application includes comprehensive mock beacon data for testing without physical hardware:
+
+```bash
+# Run with mock data
+sudo ./scout_beacon --mock --debug
+
+# Monitor logs in real-time
+tail -f ./Logs/DJI/psdk_log_*.txt
+
+# Check for successful transmissions
+grep "Beacon data transmitted successfully" ./Logs/DJI/psdk_log_*.txt
+```
+
+### PSDK Log Monitoring
+
+```bash
+# Monitor PSDK logs
+tail -f ./Logs/DJI/psdk_log_*.txt
+
+# Filter for beacon-specific logs
+tail -f ./Logs/DJI/psdk_log_*.txt | grep -E "(BEACON|PSDK|Data.*transmission)"
+
+# Check data transmission format
+grep -o '{"event":"BEACON_DETECTED".*}' ./Logs/DJI/psdk_log_*.txt
+```
+
+### DJI Assistant 2 Monitoring
+
+1. **Install DJI Assistant 2** on your development machine
+2. **Connect to Mavic 3** via USB or network
+3. **Navigate to "Payload SDK" section**
+4. **Monitor "Low-Speed Data Channel"** for incoming data
+5. **Verify JSON data format** matches expected structure
+
+### Expected Mock Mode Output
+
+```
+=== Scout Beacon Application Starting ===
+AviScout - Avalanche Beacon Detection System
+Copyright (c) 2024 Scout Berry
+
+MOCK MODE: Generating simulated avalanche beacon signals
+Mock data will be transmitted every 5 seconds
+
+[BEACON_GPIO] Mock mode enabled - generating simulated beacon data
+[BEACON_GPIO] Mock patterns available: 8
+[BEACON_GPIO] Mock data: Close beacon - North - Bearing: 0°, Distance: 15.5m, RSSI: -65dBm
+[BEACON] Time: 1703123456, Bearing: 0°, Distance: 15.5m, RSSI: -65dBm, Valid: B=Y D=Y
+[PSDK] Beacon data transmitted successfully
 ```
 
 ## Testing

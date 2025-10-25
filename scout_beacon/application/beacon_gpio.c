@@ -39,6 +39,32 @@ typedef struct {
 /* Private variables ---------------------------------------------------------*/
 static BeaconGpioContext_t s_context = {0};
 
+/* Mock beacon data for testing */
+static bool s_mock_mode_enabled = false;
+static uint32_t s_mock_beacon_counter = 0;
+static uint32_t s_mock_update_interval = 5; // Update every 5 seconds in mock mode
+
+/* Mock beacon data patterns for realistic testing */
+typedef struct {
+    int32_t bearing;
+    float distance;
+    int32_t rssi;
+    const char* description;
+} MockBeaconPattern_t;
+
+static const MockBeaconPattern_t s_mock_patterns[] = {
+    {0, 15.5, -65, "Close beacon - North"},
+    {45, 32.1, -72, "Medium range - Northeast"},
+    {90, 8.7, -58, "Very close - East"},
+    {135, 45.2, -78, "Far range - Southeast"},
+    {180, 22.3, -69, "Medium range - South"},
+    {225, 67.8, -85, "Far range - Southwest"},
+    {270, 12.4, -61, "Close range - West"},
+    {315, 38.9, -74, "Medium range - Northwest"}
+};
+
+#define MOCK_PATTERN_COUNT (sizeof(s_mock_patterns) / sizeof(s_mock_patterns[0]))
+
 /* 7-segment digit mapping (same as Python implementation) */
 static const uint8_t s_digit_map[10] = {
     0b00111111,  // 0: segments A,B,C,D,E,F
@@ -62,6 +88,9 @@ static int8_t BeaconGpio_ReadSignalStrength(void);
 static void BeaconGpio_UpdateData(void);
 static void BeaconGpio_TriggerCallback(void);
 static void BeaconGpio_PrintDebug(const char* format, ...);
+static void BeaconGpio_EnableMockMode(void);
+static void BeaconGpio_DisableMockMode(void);
+static void BeaconGpio_GenerateMockData(void);
 
 /* Exported functions --------------------------------------------------------*/
 
@@ -230,6 +259,36 @@ void BeaconGpio_SetDebug(bool enable)
     s_context.debug_enabled = enable;
 }
 
+int BeaconGpio_EnableMockMode(void)
+{
+    if (!s_context.initialized) {
+        printf("Error: Beacon GPIO not initialized\n");
+        return -1;
+    }
+    
+    s_mock_mode_enabled = true;
+    s_mock_beacon_counter = 0;
+    printf("[BEACON_GPIO] Mock mode enabled - generating simulated beacon data\n");
+    printf("[BEACON_GPIO] Mock patterns available: %d\n", MOCK_PATTERN_COUNT);
+    
+    // Generate initial mock data
+    BeaconGpio_GenerateMockData();
+    
+    return 0;
+}
+
+int BeaconGpio_DisableMockMode(void)
+{
+    s_mock_mode_enabled = false;
+    printf("[BEACON_GPIO] Mock mode disabled - returning to real GPIO reading\n");
+    return 0;
+}
+
+bool BeaconGpio_IsMockModeEnabled(void)
+{
+    return s_mock_mode_enabled;
+}
+
 /* Private functions ---------------------------------------------------------*/
 
 static void BeaconGpio_PrintDebug(const char* format, ...)
@@ -340,31 +399,37 @@ static void BeaconGpio_UpdateData(void)
     // Update timestamp
     s_context.last_data.timestamp = current_time;
     
-    // Read bearing
-    int bearing = BeaconGpio_ReadBearing();
-    if (bearing >= 0) {
-        s_context.last_data.bearing = bearing;
-        s_context.last_data.bearing_valid = true;
-        s_context.last_data.signal_detected = true;
+    if (s_mock_mode_enabled) {
+        // Generate mock data if in mock mode
+        BeaconGpio_GenerateMockData();
     } else {
-        s_context.last_data.bearing_valid = false;
-    }
-    
-    // Read distance
-    float distance = BeaconGpio_ReadDistance();
-    if (distance >= 0.0f) {
-        s_context.last_data.distance = distance;
-        s_context.last_data.distance_valid = true;
-    } else {
-        s_context.last_data.distance_valid = false;
-    }
-    
-    // Read signal strength
-    s_context.last_data.signal_strength = BeaconGpio_ReadSignalStrength();
-    
-    // Update signal detection based on bearing or distance
-    if (s_context.last_data.bearing_valid || s_context.last_data.distance_valid) {
-        s_context.last_data.signal_detected = true;
+        // Read real GPIO data
+        // Read bearing
+        int bearing = BeaconGpio_ReadBearing();
+        if (bearing >= 0) {
+            s_context.last_data.bearing = bearing;
+            s_context.last_data.bearing_valid = true;
+            s_context.last_data.signal_detected = true;
+        } else {
+            s_context.last_data.bearing_valid = false;
+        }
+        
+        // Read distance
+        float distance = BeaconGpio_ReadDistance();
+        if (distance >= 0.0f) {
+            s_context.last_data.distance = distance;
+            s_context.last_data.distance_valid = true;
+        } else {
+            s_context.last_data.distance_valid = false;
+        }
+        
+        // Read signal strength
+        s_context.last_data.signal_strength = BeaconGpio_ReadSignalStrength();
+        
+        // Update signal detection based on bearing or distance
+        if (s_context.last_data.bearing_valid || s_context.last_data.distance_valid) {
+            s_context.last_data.signal_detected = true;
+        }
     }
     
     // Trigger callback if data changed and callback is registered
@@ -381,4 +446,41 @@ static void BeaconGpio_TriggerCallback(void)
         BeaconGpio_PrintDebug("Triggering beacon callback\n");
         s_context.callback(&s_context.last_data);
     }
+}
+
+static void BeaconGpio_GenerateMockData(void)
+{
+    uint32_t current_time = time(NULL);
+    
+    // Check if it's time to update mock data (every 5 seconds)
+    if (current_time - s_context.last_update_time < s_mock_update_interval) {
+        return;
+    }
+    
+    // Cycle through mock patterns
+    const MockBeaconPattern_t* pattern = &s_mock_patterns[s_mock_beacon_counter % MOCK_PATTERN_COUNT];
+    
+    // Update beacon data with mock values
+    s_context.last_data.bearing = pattern->bearing;
+    s_context.last_data.distance = pattern->distance;
+    s_context.last_data.signal_strength = pattern->rssi;
+    s_context.last_data.bearing_valid = true;
+    s_context.last_data.distance_valid = true;
+    s_context.last_data.signal_detected = true;
+    s_context.last_data.timestamp = current_time;
+    
+    // Add some randomness to make it more realistic
+    s_context.last_data.distance += ((float)(rand() % 20 - 10)) / 10.0f; // ±1.0m variation
+    s_context.last_data.signal_strength += (rand() % 10 - 5); // ±5 dBm variation
+    
+    // Ensure values stay within reasonable bounds
+    if (s_context.last_data.distance < 0.1f) s_context.last_data.distance = 0.1f;
+    if (s_context.last_data.signal_strength > -30) s_context.last_data.signal_strength = -30;
+    if (s_context.last_data.signal_strength < -100) s_context.last_data.signal_strength = -100;
+    
+    printf("[BEACON_GPIO] Mock data: %s - Bearing: %d°, Distance: %.1fm, RSSI: %ddBm\n",
+           pattern->description, s_context.last_data.bearing, 
+           s_context.last_data.distance, s_context.last_data.signal_strength);
+    
+    s_mock_beacon_counter++;
 }
