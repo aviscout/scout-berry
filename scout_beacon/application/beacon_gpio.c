@@ -64,6 +64,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdarg.h>
 
 /* Private constants ---------------------------------------------------------*/
 #define GPIO_CHIP_HANDLE    0
@@ -133,8 +134,8 @@ static int8_t BeaconGpio_ReadSignalStrength(void);
 static void BeaconGpio_UpdateData(void);
 static void BeaconGpio_TriggerCallback(void);
 static void BeaconGpio_PrintDebug(const char* format, ...);
-static void BeaconGpio_EnableMockMode(void);
-static void BeaconGpio_DisableMockMode(void);
+static int BeaconGpio_EnableMockMode(void);
+static int BeaconGpio_DisableMockMode(void);
 static void BeaconGpio_GenerateMockData(void);
 
 /* Exported functions --------------------------------------------------------*/
@@ -202,8 +203,7 @@ int BeaconGpio_Init(void)
                          BEARING_PIN_45, BEARING_PIN_90};
     
     for (int i = 0; i < 5; i++) {
-        ret = lgGpioClaimInput(s_context.chip_handle, 0, bearing_pins[i], 
-                              LG_PULL_UP, LG_RISING_EDGE);
+        ret = lgGpioClaimInput(s_context.chip_handle, 0, bearing_pins[i]);
         if (ret < 0) {
             printf("Error: Failed to configure bearing pin %d: %s\n", 
                    bearing_pins[i], strerror(errno));
@@ -218,8 +218,7 @@ int BeaconGpio_Init(void)
                           DIGIT_1_PIN, DIGIT_2_PIN};
     
     for (int i = 0; i < 10; i++) {
-        ret = lgGpioClaimInput(s_context.chip_handle, 0, segment_pins[i], 
-                              LG_PULL_DOWN, LG_BOTH_EDGES);
+        ret = lgGpioClaimInput(s_context.chip_handle, 0, segment_pins[i]);
         if (ret < 0) {
             printf("Error: Failed to configure segment pin %d: %s\n", 
                    segment_pins[i], strerror(errno));
@@ -229,8 +228,7 @@ int BeaconGpio_Init(void)
     }
     
     // Configure RSSI pin as input
-    ret = lgGpioClaimInput(s_context.chip_handle, 0, RSSI_PIN, 
-                          LG_PULL_DOWN, LG_BOTH_EDGES);
+    ret = lgGpioClaimInput(s_context.chip_handle, 0, RSSI_PIN);
     if (ret < 0) {
         printf("Error: Failed to configure RSSI pin %d: %s\n", 
                RSSI_PIN, strerror(errno));
@@ -386,7 +384,7 @@ float BeaconGpio_GetDistance(void)
 int8_t BeaconGpio_GetSignalStrength(void)
 {
     if (!s_context.initialized) {
-        return -999;
+        return -99;  // Changed from -999 to fit in int8_t range
     }
     
     BeaconGpio_UpdateData();

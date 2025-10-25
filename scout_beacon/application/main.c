@@ -72,7 +72,7 @@
 #include <dji_logger.h>
 #include <dji_core.h>
 #include <dji_low_speed_data_channel.h>
-#include <dji_data_transmission.h>
+// #include <dji_data_transmission.h>  // This header doesn't exist in PSDK
 #include <utils/util_misc.h>
 #include <errno.h>
 #include <signal.h>
