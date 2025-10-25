@@ -5,8 +5,53 @@
  *
  * @copyright (c) 2024 Scout Berry. All rights reserved.
  *
- * This file contains the interface for reading avalanche beacon signals
- * from GPIO pins on Raspberry Pi using the lgpio library.
+ * @details This header file defines the complete interface for reading
+ *          avalanche beacon signals from GPIO pins on Raspberry Pi using
+ *          the lgpio library. It provides both real hardware operation
+ *          and mock mode for testing without physical beacon receivers.
+ *
+ * @author  Scout Berry Development Team
+ * @date    2024
+ * @version 1.0.0
+ *
+ * @section Features
+ * - Real-time GPIO reading using lgpio library
+ * - Bearing detection from 5 directional pins
+ * - Distance measurement from 7-segment display
+ * - Signal strength (RSSI) monitoring
+ * - Mock mode for testing without hardware
+ * - Comprehensive error handling and validation
+ * - Debug output for troubleshooting
+ * - Callback-based event notification
+ *
+ * @section GPIO Pin Configuration
+ * - Bearing pins: 17, 27, 22, 5, 6 (270°, 325°, 0°, 45°, 90°)
+ * - 7-segment display: 13, 19, 26, 21, 20, 16, 12, 25 (A-G, DP)
+ * - Digit control: 8, 7 (enable pins for multiplexing)
+ * - RSSI input: 18 (signal strength measurement)
+ *
+ * @section Hardware Interface
+ * The interface supports:
+ * - Digital input reading for bearing detection
+ * - 7-segment display decoding for distance
+ * - Analog input for signal strength (simulated)
+ * - Multiplexed digit reading
+ * - Edge detection for signal changes
+ *
+ * @section Mock Mode
+ * Mock mode provides realistic test data including:
+ * - 8 different beacon patterns
+ * - Realistic bearing and distance values
+ * - Signal strength variations
+ * - Automatic pattern cycling
+ * - Configurable update intervals
+ *
+ * @section Error Handling
+ * - GPIO initialization failures
+ * - Pin configuration errors
+ * - Read operation failures
+ * - Invalid data validation
+ * - Resource cleanup
  *
  *********************************************************************
  */
@@ -47,8 +92,40 @@ extern "C" {
 #define RSSI_PIN           18  // ADC pin for signal strength
 
 /* Exported types ------------------------------------------------------------*/
+
 /**
  * @brief Beacon data structure containing all beacon information
+ * 
+ * @details This structure contains all the data read from the avalanche beacon
+ *          receiver, including bearing, distance, signal strength, and validity
+ *          flags. It is used throughout the application for data transmission
+ *          and processing.
+ * 
+ * @section Data Fields
+ * - bearing: Bearing in degrees (0, 45, 90, 270, 325) or -1 if invalid
+ * - distance: Distance in meters from 7-segment display or -1.0 if invalid
+ * - signal_strength: RSSI value in dBm or -999 if invalid
+ * - timestamp: Unix timestamp of last update
+ * - signal_detected: True if any beacon signal is detected
+ * - bearing_valid: True if bearing measurement is valid
+ * - distance_valid: True if distance measurement is valid
+ * 
+ * @section Data Validation
+ * - Bearing values are validated against known directions
+ * - Distance values are checked for reasonable ranges (0.1m to 99.9m)
+ * - Signal strength is bounded to typical RSSI ranges (-30 to -100 dBm)
+ * - Timestamps are updated on each read operation
+ * 
+ * @section Usage
+ * This structure is used for:
+ * - GPIO data reading and caching
+ * - PSDK data transmission
+ * - Application state management
+ * - Debug output and logging
+ * 
+ * @see BeaconGpio_ReadBeaconData()
+ * @see ScoutBeacon_SendBeaconData()
+ * @see ScoutBeacon_LogBeaconData()
  */
 typedef struct {
     uint8_t bearing;           // Bearing in degrees (0, 45, 90, 270, 325)
@@ -61,7 +138,40 @@ typedef struct {
 } BeaconData_t;
 
 /**
- * @brief GPIO callback function type for bearing detection
+ * @brief GPIO callback function type for beacon detection events
+ * 
+ * @details This function pointer type defines the callback interface for
+ *          beacon detection events. The callback is triggered when a beacon
+ *          signal is detected, providing immediate notification and processing
+ *          of beacon data.
+ * 
+ * @param beacon_data Pointer to beacon data structure containing:
+ *                   - bearing: Bearing in degrees (0, 45, 90, 270, 325)
+ *                   - distance: Distance in meters
+ *                   - signal_strength: RSSI value in dBm
+ *                   - timestamp: Unix timestamp
+ *                   - signal_detected: Detection flag
+ *                   - bearing_valid: Bearing validity flag
+ *                   - distance_valid: Distance validity flag
+ * 
+ * @section Callback Behavior
+ * - Validates input parameters
+ * - Logs beacon detection event with bearing and distance
+ * - Immediately sends beacon data via PSDK
+ * - Provides real-time response to beacon detection
+ * 
+ * @section Error Handling
+ * - Null pointer check for beacon_data
+ * - Early return if invalid data
+ * - Transmission errors are handled by calling function
+ * 
+ * @section Performance
+ * - Minimal processing overhead
+ * - Immediate data transmission
+ * - Non-blocking operation
+ * 
+ * @see BeaconGpio_RegisterCallback()
+ * @see ScoutBeacon_BeaconCallback()
  */
 typedef void (*BeaconCallback_t)(BeaconData_t* beacon_data);
 
