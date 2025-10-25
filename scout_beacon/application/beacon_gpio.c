@@ -5,8 +5,53 @@
  *
  * @copyright (c) 2024 Scout Berry. All rights reserved.
  *
- * This file implements the interface for reading avalanche beacon signals
- * from GPIO pins on Raspberry Pi using the lgpio library.
+ * @details This file implements the complete interface for reading avalanche
+ *          beacon signals from GPIO pins on Raspberry Pi using the lgpio
+ *          library. It provides both real hardware operation and mock mode
+ *          for testing without physical beacon receivers.
+ *
+ * @author  Scout Berry Development Team
+ * @date    2024
+ * @version 1.0.0
+ *
+ * @section Features
+ * - Real-time GPIO reading using lgpio library
+ * - Bearing detection from 5 directional pins
+ * - Distance measurement from 7-segment display
+ * - Signal strength (RSSI) monitoring
+ * - Mock mode for testing without hardware
+ * - Comprehensive error handling and validation
+ * - Debug output for troubleshooting
+ * - Callback-based event notification
+ *
+ * @section GPIO Pin Configuration
+ * - Bearing pins: 17, 27, 22, 5, 6 (270°, 325°, 0°, 45°, 90°)
+ * - 7-segment display: 13, 19, 26, 21, 20, 16, 12, 25 (A-G, DP)
+ * - Digit control: 8, 7 (enable pins for multiplexing)
+ * - RSSI input: 18 (signal strength measurement)
+ *
+ * @section Hardware Interface
+ * The interface supports:
+ * - Digital input reading for bearing detection
+ * - 7-segment display decoding for distance
+ * - Analog input for signal strength (simulated)
+ * - Multiplexed digit reading
+ * - Edge detection for signal changes
+ *
+ * @section Mock Mode
+ * Mock mode provides realistic test data including:
+ * - 8 different beacon patterns
+ * - Realistic bearing and distance values
+ * - Signal strength variations
+ * - Automatic pattern cycling
+ * - Configurable update intervals
+ *
+ * @section Error Handling
+ * - GPIO initialization failures
+ * - Pin configuration errors
+ * - Read operation failures
+ * - Invalid data validation
+ * - Resource cleanup
  *
  *********************************************************************
  */
@@ -94,6 +139,48 @@ static void BeaconGpio_GenerateMockData(void);
 
 /* Exported functions --------------------------------------------------------*/
 
+/**
+ * @brief Initialize beacon GPIO interface
+ * 
+ * @details This function initializes the GPIO interface for beacon detection
+ *          using the lgpio library. It configures all required pins for
+ *          bearing detection, distance measurement, and signal strength
+ *          monitoring. The function sets up proper pull-up/pull-down
+ *          resistors and edge detection for reliable signal reading.
+ * 
+ * @return int Return code:
+ *         - 0: Success
+ *         - -1: Initialization failure
+ * 
+ * @section Initialization Process
+ * 1. Open GPIO chip handle (chip 0)
+ * 2. Configure bearing pins as inputs with pull-up resistors
+ * 3. Configure 7-segment display pins as inputs with pull-down
+ * 4. Configure digit control pins for multiplexing
+ * 5. Configure RSSI pin for signal strength measurement
+ * 6. Initialize context variables
+ * 7. Enable debug output if requested
+ * 
+ * @section Pin Configuration
+ * - Bearing pins (17, 27, 22, 5, 6): Input with pull-up, rising edge detection
+ * - Segment pins (13, 19, 26, 21, 20, 16, 12, 25): Input with pull-down, both edges
+ * - Digit control pins (8, 7): Input with pull-down, both edges
+ * - RSSI pin (18): Input with pull-down, both edges
+ * 
+ * @section Error Handling
+ * - GPIO chip open failures
+ * - Pin configuration errors
+ * - Resource allocation failures
+ * - Automatic cleanup on failure
+ * 
+ * @section Dependencies
+ * - lgpio library must be installed
+ * - GPIO permissions required
+ * - Raspberry Pi GPIO interface
+ * 
+ * @see BeaconGpio_Cleanup()
+ * @see BeaconGpio_RegisterCallback()
+ */
 int BeaconGpio_Init(void)
 {
     int ret;
@@ -198,6 +285,58 @@ int BeaconGpio_RegisterCallback(BeaconCallback_t callback)
     return 0;
 }
 
+/**
+ * @brief Read current beacon data from GPIO interface
+ * 
+ * @details This function reads the current beacon data from the GPIO interface
+ *          and returns it in the provided structure. The function updates
+ *          the internal data cache and copies the latest readings to the
+ *          output parameter. It handles both real hardware and mock mode
+ *          operation transparently.
+ * 
+ * @param beacon_data Pointer to BeaconData_t structure to fill with current data
+ * 
+ * @return int Return code:
+ *         - 0: Success
+ *         - -1: Invalid parameters or GPIO not initialized
+ * 
+ * @section Data Structure
+ * The function fills the following fields in BeaconData_t:
+ * - bearing: Bearing in degrees (0, 45, 90, 270, 325) or -1 if invalid
+ * - distance: Distance in meters or -1.0 if invalid
+ * - signal_strength: RSSI value in dBm or -999 if invalid
+ * - timestamp: Unix timestamp of last update
+ * - signal_detected: True if any signal is detected
+ * - bearing_valid: True if bearing measurement is valid
+ * - distance_valid: True if distance measurement is valid
+ * 
+ * @section Operation Modes
+ * - Real Mode: Reads actual GPIO pins for bearing, distance, and RSSI
+ * - Mock Mode: Generates realistic test data with configurable patterns
+ * 
+ * @section Data Validation
+ * - Bearing values are validated against known directions
+ * - Distance values are checked for reasonable ranges
+ * - Signal strength is validated for typical RSSI ranges
+ * - Timestamps are updated on each read operation
+ * 
+ * @section Performance
+ * - Non-blocking operation
+ * - Efficient data copying
+ * - Minimal processing overhead
+ * - Thread-safe operation
+ * 
+ * @section Error Handling
+ * - Parameter validation
+ * - Initialization state checking
+ * - Data validity verification
+ * - Graceful error reporting
+ * 
+ * @see BeaconGpio_UpdateData()
+ * @see BeaconGpio_IsBeaconDetected()
+ * @see BeaconGpio_GetBearing()
+ * @see BeaconGpio_GetDistance()
+ */
 int BeaconGpio_ReadBeaconData(BeaconData_t* beacon_data)
 {
     if (!s_context.initialized || !beacon_data) {
@@ -392,6 +531,57 @@ static int8_t BeaconGpio_ReadSignalStrength(void)
     return -67; // Simulated -67 dBm signal strength
 }
 
+/**
+ * @brief Update beacon data from GPIO interface or mock mode
+ * 
+ * @details This function updates the internal beacon data cache by reading
+ *          from GPIO pins or generating mock data. It handles both real
+ *          hardware operation and mock mode transparently, providing a
+ *          unified interface for beacon data acquisition.
+ * 
+ * @section Operation Modes
+ * - Real Mode: Reads actual GPIO pins for bearing, distance, and RSSI
+ * - Mock Mode: Generates realistic test data with configurable patterns
+ * 
+ * @section Data Processing
+ * 1. Update timestamp to current time
+ * 2. Check operation mode (real vs mock)
+ * 3. Read or generate bearing data
+ * 4. Read or generate distance data
+ * 5. Read or generate signal strength
+ * 6. Update validity flags
+ * 7. Trigger callback if data changed
+ * 
+ * @section Real Mode Operation
+ * - Reads bearing from 5 directional pins
+ * - Decodes distance from 7-segment display
+ * - Reads signal strength from RSSI pin
+ * - Validates all measurements
+ * - Updates detection flags
+ * 
+ * @section Mock Mode Operation
+ * - Generates realistic test patterns
+ * - Cycles through predefined scenarios
+ * - Adds random variations for realism
+ * - Maintains configurable update intervals
+ * 
+ * @section Data Validation
+ * - Bearing values are checked against known directions
+ * - Distance values are validated for reasonable ranges
+ * - Signal strength is bounded to typical RSSI ranges
+ * - Timestamps are updated on each call
+ * 
+ * @section Callback Triggering
+ * - Callback is triggered when beacon is detected
+ * - Provides immediate notification of signal changes
+ * - Enables real-time processing of beacon events
+ * 
+ * @see BeaconGpio_ReadBearing()
+ * @see BeaconGpio_ReadDistance()
+ * @see BeaconGpio_ReadSignalStrength()
+ * @see BeaconGpio_GenerateMockData()
+ * @see BeaconGpio_TriggerCallback()
+ */
 static void BeaconGpio_UpdateData(void)
 {
     uint32_t current_time = time(NULL);
