@@ -83,8 +83,14 @@ if (DEVICE_SYSTEM_ID MATCHES x86_64)
 elseif (DEVICE_SYSTEM_ID MATCHES aarch64)
     set(TOOLCHAIN_NAME aarch64-linux-gnu-gcc)
     add_definitions(-DPLATFORM_ARCH_aarch64=1)
+elseif (DEVICE_SYSTEM_ID MATCHES arm64)
+    set(TOOLCHAIN_NAME aarch64-linux-gnu-gcc)
+    add_definitions(-DPLATFORM_ARCH_aarch64=1)
 else ()
-    message(FATAL_ERROR "FATAL: Please confirm your platform.")
+    message(STATUS "Platform: ${DEVICE_SYSTEM_ID}")
+    message(STATUS "Using default x86_64 toolchain")
+    set(TOOLCHAIN_NAME x86_64-linux-gnu-gcc)
+    add_definitions(-DPLATFORM_ARCH_x86_64=1)
 endif ()
 
 # =============================================================================
@@ -102,11 +108,21 @@ endif ()
 #
 # =============================================================================
 
-# Source files
-file(GLOB_RECURSE MODULE_COMMON_SRC ../common/*.c)
-file(GLOB_RECURSE MODULE_HAL_SRC hal/*.c)
+# Source files - manually specify to avoid Linux-specific files
+set(MODULE_COMMON_SRC
+    common/lgpio_stub.c
+    common/monitor/sys_monitor.c
+    common/osal/osal_macos_stub.c
+    common/utils/util_misc.c
+    common/psdk_stub.c
+)
+# Use HAL stubs for macOS development
+set(MODULE_HAL_SRC
+    hal/hal_uart_stub.c
+    hal/hal_network_stub.c
+    hal/hal_usb_bulk_stub.c
+)
 file(GLOB_RECURSE MODULE_APP_SRC application/*.c)
-file(GLOB_RECURSE MODULE_SAMPLE_SRC ../../../module_sample/*.c)
 
 # =============================================================================
 # Include Directories Configuration
@@ -124,8 +140,10 @@ file(GLOB_RECURSE MODULE_SAMPLE_SRC ../../../module_sample/*.c)
 # =============================================================================
 
 # Include directories
-include_directories(../../../module_sample)
-include_directories(../common)
+include_directories(common)
+include_directories(common/osal)
+include_directories(common/monitor)
+include_directories(common/utils)
 include_directories(application)
 
 # =============================================================================
@@ -142,10 +160,9 @@ include_directories(application)
 #
 # =============================================================================
 
-# PSDK library paths
-include_directories(../../../../../psdk_lib/include)
-link_directories(../../../../../psdk_lib/lib/${TOOLCHAIN_NAME})
-link_libraries(${CMAKE_CURRENT_LIST_DIR}/../../../../../psdk_lib/lib/${TOOLCHAIN_NAME}/lib${PACKAGE_NAME}.a)
+# PSDK library paths - using stubs for macOS development
+include_directories(/Users/mikeneqa/Dev/Payload-SDK/psdk_lib/include)
+# Note: PSDK library linking disabled for macOS development - using stubs instead
 
 # Output directory
 if (NOT EXECUTABLE_OUTPUT_PATH)
@@ -190,16 +207,8 @@ add_executable(${PROJECT_NAME}
 #
 # =============================================================================
 
-# Find and link lgpio library for GPIO access
-find_library(LGPIO_LIB lgpio)
-if (LGPIO_LIB)
-    message(STATUS "Found lgpio library: ${LGPIO_LIB}")
-    target_link_libraries(${PROJECT_NAME} ${LGPIO_LIB})
-else ()
-    message(STATUS "lgpio library not found, trying alternative...")
-    # Try to link with -llgpio
-    target_link_libraries(${PROJECT_NAME} lgpio)
-endif ()
+# Use lgpio stub for development (lgpio only available on Raspberry Pi)
+message(STATUS "Using lgpio stub for development")
 
 # =============================================================================
 # OPUS Audio Codec Library Configuration

@@ -1,0 +1,3 @@
+/Users/mikeneqa/Dev/scout-berry/scout_beacon/build/CMakeFiles/scout_beacon.dir
+/Users/mikeneqa/Dev/scout-berry/scout_beacon/build/CMakeFiles/edit_cache.dir
+/Users/mikeneqa/Dev/scout-berry/scout_beacon/build/CMakeFiles/rebuild_cache.dir

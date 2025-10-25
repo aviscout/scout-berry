@@ -72,8 +72,6 @@
 #include <dji_logger.h>
 #include <dji_core.h>
 #include <dji_low_speed_data_channel.h>
-// #include <dji_data_transmission.h>  // This header doesn't exist in PSDK
-#include <utils/util_misc.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
@@ -83,6 +81,7 @@
 #include <time.h>
 #include <pthread.h>
 
+#include "utils/util_misc.h"
 #include "monitor/sys_monitor.h"
 #include "osal/osal.h"
 #include "osal/osal_fs.h"
@@ -92,7 +91,6 @@
 #include "../hal/hal_usb_bulk.h"
 #include "dji_sdk_app_info.h"
 #include "dji_aircraft_info.h"
-#include "data_transmission/test_data_transmission.h"
 #include "dji_sdk_config.h"
 #include "beacon_gpio.h"
 
@@ -141,6 +139,11 @@ static void ScoutBeacon_InitializeModules(void);
 static void ScoutBeacon_MainLoop(void);
 static void ScoutBeacon_PrintUsage(const char* program_name);
 static bool ScoutBeacon_ParseArguments(int argc, char** argv, bool* mock_mode, bool* debug_mode);
+
+/* Module stub functions */
+static T_DjiReturnCode DjiTest_DataTransmissionStartService(void);
+static T_DjiReturnCode DjiTest_FcSubscriptionStartService(void);
+static T_DjiReturnCode DjiTest_PowerManagementStartService(void);
 
 /* Exported functions definition ---------------------------------------------*/
 
@@ -323,7 +326,7 @@ int main(int argc, char **argv)
     ScoutBeacon_InitializeModules();
 
     /*!< Step 6: Start SDK application */
-    returnCode = DjiCore_StartApplication();
+    returnCode = DjiCore_ApplicationStart();
     if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
         USER_LOG_ERROR("start application error");
         BeaconGpio_Cleanup();
@@ -619,7 +622,7 @@ static T_DjiReturnCode ScoutBeacon_SendBeaconData(const BeaconData_t* beacon_dat
     
     // Send via low-speed data channel
     T_DjiReturnCode returnCode = DjiLowSpeedDataChannel_SendData(
-        DJI_LOW_SPEED_DATA_CHANNEL_INDEX_0,
+        DJI_CHANNEL_ADDRESS_PAYLOAD_PORT_NO1,
         (uint8_t*)beacon_json,
         strlen(beacon_json)
     );
@@ -645,44 +648,165 @@ static void ScoutBeacon_LogBeaconData(const BeaconData_t* beacon_data)
            beacon_data->distance_valid ? "Y" : "N");
 }
 
-/* System environment functions (copied from manifold2 template) */
+/* System environment functions (implemented using PSDK registration pattern) */
 static T_DjiReturnCode DjiUser_PrepareSystemEnvironment(void)
 {
     T_DjiReturnCode returnCode;
-    
-    // Initialize OSAL
-    returnCode = DjiUser_OsalInit();
+    T_DjiOsalHandler osalHandler = {
+        .TaskCreate = Osal_TaskCreate,
+        .TaskDestroy = Osal_TaskDestroy,
+        .TaskSleepMs = Osal_TaskSleepMs,
+        .MutexCreate= Osal_MutexCreate,
+        .MutexDestroy = Osal_MutexDestroy,
+        .MutexLock = Osal_MutexLock,
+        .MutexUnlock = Osal_MutexUnlock,
+        .SemaphoreCreate = Osal_SemaphoreCreate,
+        .SemaphoreDestroy = Osal_SemaphoreDestroy,
+        .SemaphoreWait = Osal_SemaphoreWait,
+        .SemaphoreTimedWait = Osal_SemaphoreTimedWait,
+        .SemaphorePost = Osal_SemaphorePost,
+        .Malloc = Osal_Malloc,
+        .Free = Osal_Free,
+        .GetTimeMs = Osal_GetTimeMs,
+        .GetTimeUs = Osal_GetTimeUs,
+        .GetRandomNum  = Osal_GetRandomNum,
+    };
+
+    T_DjiLoggerConsole printConsole = {
+        .func = DjiUser_PrintConsole,
+        .consoleLevel = DJI_LOGGER_CONSOLE_LOG_LEVEL_INFO,
+        .isSupportColor = true,
+    };
+
+    T_DjiLoggerConsole localRecordConsole = {
+        .consoleLevel = DJI_LOGGER_CONSOLE_LOG_LEVEL_DEBUG,
+        .func = DjiUser_LocalWrite,
+        .isSupportColor = true,
+    };
+
+    T_DjiHalUartHandler uartHandler = {
+        .UartInit = HalUart_Init,
+        .UartDeInit = HalUart_DeInit,
+        .UartWriteData = HalUart_WriteData,
+        .UartReadData = HalUart_ReadData,
+        .UartGetStatus = HalUart_GetStatus,
+    };
+
+    T_DjiHalNetworkHandler networkHandler = {
+        .NetworkInit = HalNetWork_Init,
+        .NetworkDeInit = HalNetWork_DeInit,
+        .NetworkGetDeviceInfo = HalNetWork_GetDeviceInfo,
+    };
+
+    T_DjiHalUsbBulkHandler usbBulkHandler = {
+        .UsbBulkInit = HalUsbBulk_Init,
+        .UsbBulkDeInit = HalUsbBulk_DeInit,
+        .UsbBulkWriteData = HalUsbBulk_WriteData,
+        .UsbBulkReadData = HalUsbBulk_ReadData,
+        .UsbBulkGetDeviceInfo = HalUsbBulk_GetDeviceInfo,
+    };
+
+    T_DjiFileSystemHandler fileSystemHandler = {
+        .FileOpen = Osal_FileOpen,
+        .FileClose = Osal_FileClose,
+        .FileWrite = Osal_FileWrite,
+        .FileRead = Osal_FileRead,
+        .FileSync = Osal_FileSync,
+        .FileSeek = Osal_FileSeek,
+        .DirOpen = Osal_DirOpen,
+        .DirClose = Osal_DirClose,
+        .DirRead = Osal_DirRead,
+        .Mkdir = Osal_Mkdir,
+        .Unlink = Osal_Unlink,
+        .Rename = Osal_Rename,
+        .Stat = Osal_Stat,
+    };
+
+    T_DjiSocketHandler socketHandler = {
+        .Socket = Osal_Socket,
+        .Bind = Osal_Bind,
+        .Close = Osal_Close,
+        .UdpSendData = Osal_UdpSendData,
+        .UdpRecvData = Osal_UdpRecvData,
+        .TcpListen = Osal_TcpListen,
+        .TcpAccept = Osal_TcpAccept,
+        .TcpConnect = Osal_TcpConnect,
+        .TcpSendData = Osal_TcpSendData,
+        .TcpRecvData = Osal_TcpRecvData,
+    };
+
+    returnCode = DjiPlatform_RegOsalHandler(&osalHandler);
     if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
-        return returnCode;
+        printf("register osal handler error");
+        return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
     }
-    
-    // Initialize HAL
-    returnCode = DjiUser_HalInit();
+
+    returnCode = DjiPlatform_RegHalUartHandler(&uartHandler);
     if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
-        return returnCode;
+        printf("register hal uart handler error");
+        return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
     }
-    
-    // Initialize logger
-    returnCode = DjiUser_LoggerInit();
+
+    if (DjiUser_LocalWriteFsInit(DJI_LOG_PATH) != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
+        printf("file system init error");
+        return DJI_ERROR_SYSTEM_MODULE_CODE_UNKNOWN;
+    }
+
+    returnCode = DjiLogger_AddConsole(&printConsole);
     if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
-        return returnCode;
+        printf("add printf console error");
+        return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
     }
-    
-    // Initialize file system
-    returnCode = DjiUser_LocalWriteFsInit(DJI_LOG_PATH);
+
+    returnCode = DjiLogger_AddConsole(&localRecordConsole);
     if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
-        return returnCode;
+        printf("add printf console error");
+        return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
     }
-    
+
+#if (CONFIG_HARDWARE_CONNECTION == DJI_USE_UART_AND_USB_BULK_DEVICE)
+    returnCode = DjiPlatform_RegHalUsbBulkHandler(&usbBulkHandler);
+    if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
+        printf("register hal usb bulk handler error");
+        return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
+    }
+#elif (CONFIG_HARDWARE_CONNECTION == DJI_USE_UART_AND_NETWORK_DEVICE)
+    returnCode = DjiPlatform_RegHalNetworkHandler(&networkHandler);
+    if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
+        printf("register hal network handler error");
+        return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
+    }
+
+    //Attention: if you want to use camera stream view function, please uncomment it.
+    returnCode = DjiPlatform_RegSocketHandler(&socketHandler);
+    if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
+        printf("register osal socket handler error");
+        return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
+    }
+#elif (CONFIG_HARDWARE_CONNECTION == DJI_USE_ONLY_UART)
+    /*!< Attention: Only use uart hardware connection.
+     */
+#endif
+
+    returnCode = DjiPlatform_RegFileSystemHandler(&fileSystemHandler);
+    if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
+        printf("register osal filesystem handler error");
+        return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
+    }
+
     return DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS;
 }
 
 static T_DjiReturnCode DjiUser_CleanSystemEnvironment(void)
 {
-    DjiUser_LoggerDeInit();
-    DjiUser_HalDeInit();
-    DjiUser_OsalDeInit();
-    return DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS;
+    T_DjiReturnCode returnCode;
+    
+    returnCode = DjiCore_DeInit();
+    if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
+        printf("Core deinit failed.");
+    }
+    
+    return returnCode;
 }
 
 static T_DjiReturnCode DjiUser_FillInUserInfo(T_DjiUserInfo *userInfo)
@@ -750,7 +874,7 @@ static T_DjiReturnCode DjiUser_LocalWriteFsInit(const char *path)
 
 static void *DjiUser_MonitorTask(void *argument)
 {
-    USER_UTIL_UNUSED(argument);
+    (void)(argument);
     
     while (s_context.running) {
         // Monitor system resources
@@ -762,7 +886,7 @@ static void *DjiUser_MonitorTask(void *argument)
 
 static void DjiUser_NormalExitHandler(int signalNum)
 {
-    USER_UTIL_UNUSED(signalNum);
+    (void)(signalNum);
     
     printf("\nReceived exit signal. Shutting down gracefully...\n");
     s_context.running = false;
@@ -813,4 +937,51 @@ static bool ScoutBeacon_ParseArguments(int argc, char** argv, bool* mock_mode, b
     }
     
     return true;
+}
+
+/* Module stub implementations ------------------------------------------------*/
+
+/**
+ * @brief Stub implementation for data transmission module
+ * 
+ * @details This is a stub implementation that always returns success.
+ *          In a real implementation, this would initialize the data
+ *          transmission module for sending beacon data to the drone.
+ * 
+ * @return T_DjiReturnCode Always returns DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS
+ */
+static T_DjiReturnCode DjiTest_DataTransmissionStartService(void)
+{
+    USER_LOG_INFO("Data transmission module stub - always returns success");
+    return DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS;
+}
+
+/**
+ * @brief Stub implementation for FC subscription module
+ * 
+ * @details This is a stub implementation that always returns success.
+ *          In a real implementation, this would initialize the flight
+ *          controller subscription module for receiving drone telemetry.
+ * 
+ * @return T_DjiReturnCode Always returns DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS
+ */
+static T_DjiReturnCode DjiTest_FcSubscriptionStartService(void)
+{
+    USER_LOG_INFO("FC subscription module stub - always returns success");
+    return DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS;
+}
+
+/**
+ * @brief Stub implementation for power management module
+ * 
+ * @details This is a stub implementation that always returns success.
+ *          In a real implementation, this would initialize the power
+ *          management module for monitoring drone power status.
+ * 
+ * @return T_DjiReturnCode Always returns DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS
+ */
+static T_DjiReturnCode DjiTest_PowerManagementStartService(void)
+{
+    USER_LOG_INFO("Power management module stub - always returns success");
+    return DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS;
 }

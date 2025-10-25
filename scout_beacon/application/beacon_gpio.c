@@ -58,7 +58,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "beacon_gpio.h"
-#include <lgpio.h>
+#include "lgpio_stub.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -134,8 +134,6 @@ static int8_t BeaconGpio_ReadSignalStrength(void);
 static void BeaconGpio_UpdateData(void);
 static void BeaconGpio_TriggerCallback(void);
 static void BeaconGpio_PrintDebug(const char* format, ...);
-static int BeaconGpio_EnableMockMode(void);
-static int BeaconGpio_DisableMockMode(void);
 static void BeaconGpio_GenerateMockData(void);
 
 /* Exported functions --------------------------------------------------------*/
@@ -406,7 +404,7 @@ int BeaconGpio_EnableMockMode(void)
     s_mock_mode_enabled = true;
     s_mock_beacon_counter = 0;
     printf("[BEACON_GPIO] Mock mode enabled - generating simulated beacon data\n");
-    printf("[BEACON_GPIO] Mock patterns available: %d\n", MOCK_PATTERN_COUNT);
+    printf("[BEACON_GPIO] Mock patterns available: %lu\n", MOCK_PATTERN_COUNT);
     
     // Generate initial mock data
     BeaconGpio_GenerateMockData();
