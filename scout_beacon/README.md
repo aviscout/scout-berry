@@ -207,6 +207,58 @@ Mock data will be transmitted every 5 seconds
 [PSDK] Beacon data transmitted successfully
 ```
 
+## Next Steps
+
+### Phase 1: Mock Data Testing (Current)
+1. **Deploy to Raspberry Pi** and test with mock data:
+   ```bash
+   sudo ./scout_beacon --mock --debug
+   ```
+2. **Monitor PSDK logs** for successful data transmission:
+   ```bash
+   tail -f ./Logs/DJI/psdk_log_*.txt
+   ```
+3. **Verify JSON data format** in logs and DJI Assistant 2
+4. **Test all 8 mock beacon patterns** for realistic behavior
+
+### Phase 2: Hardware Integration
+1. **Connect beacon receiver** to GPIO pins as configured
+2. **Test with real GPIO hardware**:
+   ```bash
+   sudo ./scout_beacon --debug
+   ```
+3. **Verify physical beacon detection** and data transmission
+4. **Monitor real-world beacon signals** and transmission
+
+### Phase 3: Drone Integration
+1. **Connect to Mavic 3** via E-Port Development Kit
+2. **Test bidirectional communication** between Pi and drone
+3. **Verify data reception** in DJI Assistant 2
+4. **Test with real avalanche beacon** for end-to-end validation
+
+### Phase 4: Production Deployment
+1. **Optimize transmission frequency** based on real-world performance
+2. **Implement error handling** for communication failures
+3. **Add power management** for extended operation
+4. **Create deployment scripts** for automated setup
+
+### Development Workflow
+```bash
+# 1. Development (macOS)
+git add .
+git commit -m "Update scout beacon application"
+git push origin cursor-dev
+
+# 2. Deployment (Raspberry Pi)
+ssh aviscout@192.168.1.84
+cd /path/to/scout-berry
+git pull origin cursor-dev
+cd scout_beacon
+mkdir -p build && cd build
+cmake .. && make
+sudo ./scout_beacon --mock --debug
+```
+
 ## Testing
 
 ### 1. GPIO Testing
