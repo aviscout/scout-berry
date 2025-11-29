@@ -4,7 +4,21 @@ AviScout - Avalanche Beacon Detection System for Autonomous Drone Rescue Operati
 
 ## Project Overview
 
-Scout Berry integrates avalanche beacon detection with DJI Payload SDK (PSDK) for autonomous drone rescue operations. The system reads beacon signals from GPIO pins on a Raspberry Pi and transmits the data to a Mavic 3 drone via PSDK.
+Scout Berry integrates avalanche beacon detection with DJI Payload SDK (PSDK) for autonomous drone rescue operations. The system reads beacon signals from GPIO pins on a Raspberry Pi and transmits the data to a Mavic 3 Enterprise drone via PSDK.
+
+## Quick Start for Developers
+
+**New to the project?** Start here:
+
+1. **[PSDK Setup Guide](PSDK_SETUP_GUIDE.md)** - Complete step-by-step instructions for:
+   - Enabling PSDK mode on the drone using DJI Assistant 2
+   - Verifying hardware connections
+   - Testing initial communication
+   - Troubleshooting common issues
+
+2. **Hardware Setup**: Ensure your Mavic 3 Enterprise drone has PSDK mode enabled (see guide above)
+
+3. **Build & Deploy**: Follow the build instructions below
 
 ## Components
 
