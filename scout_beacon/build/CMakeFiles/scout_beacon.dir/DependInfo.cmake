@@ -8,24 +8,21 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/Users/mikeneqa/Dev/scout-berry/scout_beacon/application/beacon_gpio.c" "CMakeFiles/scout_beacon.dir/application/beacon_gpio.c.o" "gcc" "CMakeFiles/scout_beacon.dir/application/beacon_gpio.c.o.d"
-  "/Users/mikeneqa/Dev/scout-berry/scout_beacon/application/main.c" "CMakeFiles/scout_beacon.dir/application/main.c.o" "gcc" "CMakeFiles/scout_beacon.dir/application/main.c.o.d"
-  "/Users/mikeneqa/Dev/scout-berry/scout_beacon/common/lgpio_stub.c" "CMakeFiles/scout_beacon.dir/common/lgpio_stub.c.o" "gcc" "CMakeFiles/scout_beacon.dir/common/lgpio_stub.c.o.d"
-  "/Users/mikeneqa/Dev/scout-berry/scout_beacon/common/monitor/sys_monitor.c" "CMakeFiles/scout_beacon.dir/common/monitor/sys_monitor.c.o" "gcc" "CMakeFiles/scout_beacon.dir/common/monitor/sys_monitor.c.o.d"
-  "/Users/mikeneqa/Dev/scout-berry/scout_beacon/common/osal/osal_macos_stub.c" "CMakeFiles/scout_beacon.dir/common/osal/osal_macos_stub.c.o" "gcc" "CMakeFiles/scout_beacon.dir/common/osal/osal_macos_stub.c.o.d"
-  "/Users/mikeneqa/Dev/scout-berry/scout_beacon/common/psdk_stub.c" "CMakeFiles/scout_beacon.dir/common/psdk_stub.c.o" "gcc" "CMakeFiles/scout_beacon.dir/common/psdk_stub.c.o.d"
-  "/Users/mikeneqa/Dev/scout-berry/scout_beacon/common/utils/util_misc.c" "CMakeFiles/scout_beacon.dir/common/utils/util_misc.c.o" "gcc" "CMakeFiles/scout_beacon.dir/common/utils/util_misc.c.o.d"
-  "/Users/mikeneqa/Dev/scout-berry/scout_beacon/hal/hal_network_stub.c" "CMakeFiles/scout_beacon.dir/hal/hal_network_stub.c.o" "gcc" "CMakeFiles/scout_beacon.dir/hal/hal_network_stub.c.o.d"
-  "/Users/mikeneqa/Dev/scout-berry/scout_beacon/hal/hal_uart_stub.c" "CMakeFiles/scout_beacon.dir/hal/hal_uart_stub.c.o" "gcc" "CMakeFiles/scout_beacon.dir/hal/hal_uart_stub.c.o.d"
-  "/Users/mikeneqa/Dev/scout-berry/scout_beacon/hal/hal_usb_bulk_stub.c" "CMakeFiles/scout_beacon.dir/hal/hal_usb_bulk_stub.c.o" "gcc" "CMakeFiles/scout_beacon.dir/hal/hal_usb_bulk_stub.c.o.d"
+  "/home/aviscout/MVP/scout-berry/scout_beacon/application/beacon_gpio.c" "CMakeFiles/scout_beacon.dir/application/beacon_gpio.c.o" "gcc" "CMakeFiles/scout_beacon.dir/application/beacon_gpio.c.o.d"
+  "/home/aviscout/MVP/scout-berry/scout_beacon/application/main.c" "CMakeFiles/scout_beacon.dir/application/main.c.o" "gcc" "CMakeFiles/scout_beacon.dir/application/main.c.o.d"
+  "/home/aviscout/MVP/scout-berry/scout_beacon/common/lgpio_stub.c" "CMakeFiles/scout_beacon.dir/common/lgpio_stub.c.o" "gcc" "CMakeFiles/scout_beacon.dir/common/lgpio_stub.c.o.d"
+  "/home/aviscout/MVP/scout-berry/scout_beacon/common/monitor/sys_monitor.c" "CMakeFiles/scout_beacon.dir/common/monitor/sys_monitor.c.o" "gcc" "CMakeFiles/scout_beacon.dir/common/monitor/sys_monitor.c.o.d"
+  "/home/aviscout/MVP/scout-berry/scout_beacon/common/osal/osal.c" "CMakeFiles/scout_beacon.dir/common/osal/osal.c.o" "gcc" "CMakeFiles/scout_beacon.dir/common/osal/osal.c.o.d"
+  "/home/aviscout/MVP/scout-berry/scout_beacon/common/osal/osal_fs.c" "CMakeFiles/scout_beacon.dir/common/osal/osal_fs.c.o" "gcc" "CMakeFiles/scout_beacon.dir/common/osal/osal_fs.c.o.d"
+  "/home/aviscout/MVP/scout-berry/scout_beacon/common/osal/osal_socket.c" "CMakeFiles/scout_beacon.dir/common/osal/osal_socket.c.o" "gcc" "CMakeFiles/scout_beacon.dir/common/osal/osal_socket.c.o.d"
+  "/home/aviscout/MVP/scout-berry/scout_beacon/common/utils/util_misc.c" "CMakeFiles/scout_beacon.dir/common/utils/util_misc.c.o" "gcc" "CMakeFiles/scout_beacon.dir/common/utils/util_misc.c.o.d"
+  "/home/aviscout/MVP/scout-berry/scout_beacon/hal/hal_network.c" "CMakeFiles/scout_beacon.dir/hal/hal_network.c.o" "gcc" "CMakeFiles/scout_beacon.dir/hal/hal_network.c.o.d"
+  "/home/aviscout/MVP/scout-berry/scout_beacon/hal/hal_uart.c" "CMakeFiles/scout_beacon.dir/hal/hal_uart.c.o" "gcc" "CMakeFiles/scout_beacon.dir/hal/hal_uart.c.o.d"
+  "/home/aviscout/MVP/scout-berry/scout_beacon/hal/hal_usb_bulk.c" "CMakeFiles/scout_beacon.dir/hal/hal_usb_bulk.c.o" "gcc" "CMakeFiles/scout_beacon.dir/hal/hal_usb_bulk.c.o.d"
   )
 
-# Targets to which this target links which contain Fortran sources.
-set(CMAKE_Fortran_TARGET_LINKED_INFO_FILES
-  )
-
-# Targets to which this target links which contain Fortran sources.
-set(CMAKE_Fortran_TARGET_FORWARD_LINKED_INFO_FILES
+# Targets to which this target links.
+set(CMAKE_TARGET_LINKED_INFO_FILES
   )
 
 # Fortran module output directory.
