@@ -18,7 +18,6 @@
  * - Real-time GPIO reading using lgpio library
  * - Bearing detection from 5 directional pins
  * - Distance measurement from 7-segment display
- * - Signal strength (RSSI) monitoring
  * - Mock mode for testing without hardware
  * - Comprehensive error handling and validation
  * - Debug output for troubleshooting
@@ -28,21 +27,18 @@
  * - Bearing pins: 17, 27, 22, 5, 6 (270°, 325°, 0°, 45°, 90°)
  * - 7-segment display: 13, 19, 26, 21, 20, 16, 12, 25 (A-G, DP)
  * - Digit control: 8, 7 (enable pins for multiplexing)
- * - RSSI input: 18 (signal strength measurement)
  *
  * @section Hardware Interface
  * The interface supports:
  * - Digital input reading for bearing detection
- * - 7-segment display decoding for distance
- * - Analog input for signal strength (simulated)
- * - Multiplexed digit reading
+ * - 7-segment display decoding for distance measurement
+ * - Multiplexed digit reading from 7-segment display
  * - Edge detection for signal changes
  *
  * @section Mock Mode
  * Mock mode provides realistic test data including:
  * - 8 different beacon patterns
  * - Realistic bearing and distance values
- * - Signal strength variations
  * - Automatic pattern cycling
  * - Configurable update intervals
  *
@@ -99,14 +95,14 @@ typedef struct {
 } MockBeaconPattern_t;
 
 static const MockBeaconPattern_t s_mock_patterns[] = {
-    {0, 15.5, -65, "Close beacon - North"},
-    {45, 32.1, -72, "Medium range - Northeast"},
-    {90, 8.7, -58, "Very close - East"},
-    {135, 45.2, -78, "Far range - Southeast"},
-    {180, 22.3, -69, "Medium range - South"},
-    {225, 67.8, -85, "Far range - Southwest"},
-    {270, 12.4, -61, "Close range - West"},
-    {315, 38.9, -74, "Medium range - Northwest"}
+    {0, 15.5, -99, "Close beacon - North"},
+    {45, 32.1, -99, "Medium range - Northeast"},
+    {90, 8.7, -99, "Very close - East"},
+    {135, 45.2, -99, "Far range - Southeast"},
+    {180, 22.3, -99, "Medium range - South"},
+    {225, 67.8, -99, "Far range - Southwest"},
+    {270, 12.4, -99, "Close range - West"},
+    {315, 38.9, -99, "Medium range - Northwest"}
 };
 
 #define MOCK_PATTERN_COUNT (sizeof(s_mock_patterns) / sizeof(s_mock_patterns[0]))
@@ -143,9 +139,9 @@ static void BeaconGpio_GenerateMockData(void);
  * 
  * @details This function initializes the GPIO interface for beacon detection
  *          using the lgpio library. It configures all required pins for
- *          bearing detection, distance measurement, and signal strength
- *          monitoring. The function sets up proper pull-up/pull-down
- *          resistors and edge detection for reliable signal reading.
+ *          bearing detection and distance measurement from the 7-segment display.
+ *          The function sets up proper pull-up/pull-down resistors and edge
+ *          detection for reliable signal reading.
  * 
  * @return int Return code:
  *         - 0: Success
@@ -156,15 +152,13 @@ static void BeaconGpio_GenerateMockData(void);
  * 2. Configure bearing pins as inputs with pull-up resistors
  * 3. Configure 7-segment display pins as inputs with pull-down
  * 4. Configure digit control pins for multiplexing
- * 5. Configure RSSI pin for signal strength measurement
- * 6. Initialize context variables
- * 7. Enable debug output if requested
+ * 5. Initialize context variables
+ * 6. Enable debug output if requested
  * 
  * @section Pin Configuration
  * - Bearing pins (17, 27, 22, 5, 6): Input with pull-up, rising edge detection
  * - Segment pins (13, 19, 26, 21, 20, 16, 12, 25): Input with pull-down, both edges
  * - Digit control pins (8, 7): Input with pull-down, both edges
- * - RSSI pin (18): Input with pull-down, both edges
  * 
  * @section Error Handling
  * - GPIO chip open failures
@@ -210,12 +204,11 @@ int BeaconGpio_Init(void)
         }
     }
     
-    // Configure 7-segment display pins as inputs
+    // Configure 7-segment display segment pins as inputs (to read the display)
     int segment_pins[] = {SEG_A_PIN, SEG_B_PIN, SEG_C_PIN, SEG_D_PIN, 
-                          SEG_E_PIN, SEG_F_PIN, SEG_G_PIN, SEG_DP_PIN,
-                          DIGIT_1_PIN, DIGIT_2_PIN};
+                          SEG_E_PIN, SEG_F_PIN, SEG_G_PIN, SEG_DP_PIN};
     
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 8; i++) {
         ret = lgGpioClaimInput(s_context.chip_handle, 0, segment_pins[i]);
         if (ret < 0) {
             printf("Error: Failed to configure segment pin %d: %s\n", 
@@ -225,11 +218,19 @@ int BeaconGpio_Init(void)
         }
     }
     
-    // Configure RSSI pin as input
-    ret = lgGpioClaimInput(s_context.chip_handle, 0, RSSI_PIN);
+    // Configure digit control pins as outputs (to enable/disable digits for multiplexing)
+    ret = lgGpioClaimOutput(s_context.chip_handle, 0, DIGIT_1_PIN, 0);
     if (ret < 0) {
-        printf("Error: Failed to configure RSSI pin %d: %s\n", 
-               RSSI_PIN, strerror(errno));
+        printf("Error: Failed to configure digit 1 control pin %d: %s\n", 
+               DIGIT_1_PIN, strerror(errno));
+        BeaconGpio_Cleanup();
+        return -1;
+    }
+    
+    ret = lgGpioClaimOutput(s_context.chip_handle, 0, DIGIT_2_PIN, 0);
+    if (ret < 0) {
+        printf("Error: Failed to configure digit 2 control pin %d: %s\n", 
+               DIGIT_2_PIN, strerror(errno));
         BeaconGpio_Cleanup();
         return -1;
     }
@@ -249,14 +250,18 @@ int BeaconGpio_Cleanup(void)
     }
     
     // Release all GPIO pins
-    int all_pins[] = {BEARING_PIN_270, BEARING_PIN_325, BEARING_PIN_0, 
-                     BEARING_PIN_45, BEARING_PIN_90, SEG_A_PIN, SEG_B_PIN, 
-                     SEG_C_PIN, SEG_D_PIN, SEG_E_PIN, SEG_F_PIN, SEG_G_PIN, 
-                     SEG_DP_PIN, DIGIT_1_PIN, DIGIT_2_PIN, RSSI_PIN};
+    int input_pins[] = {BEARING_PIN_270, BEARING_PIN_325, BEARING_PIN_0, 
+                       BEARING_PIN_45, BEARING_PIN_90, SEG_A_PIN, SEG_B_PIN, 
+                       SEG_C_PIN, SEG_D_PIN, SEG_E_PIN, SEG_F_PIN, SEG_G_PIN, 
+                       SEG_DP_PIN};
     
-    for (int i = 0; i < 16; i++) {
-        lgGpioFree(s_context.chip_handle, all_pins[i]);
+    for (int i = 0; i < 13; i++) {
+        lgGpioFree(s_context.chip_handle, input_pins[i]);
     }
+    
+    // Release output pins (digit control)
+    lgGpioFree(s_context.chip_handle, DIGIT_1_PIN);
+    lgGpioFree(s_context.chip_handle, DIGIT_2_PIN);
     
     // Close GPIO chip
     if (s_context.chip_handle >= 0) {
@@ -299,21 +304,20 @@ int BeaconGpio_RegisterCallback(BeaconCallback_t callback)
  * @section Data Structure
  * The function fills the following fields in BeaconData_t:
  * - bearing: Bearing in degrees (0, 45, 90, 270, 325) or -1 if invalid
- * - distance: Distance in meters or -1.0 if invalid
- * - signal_strength: RSSI value in dBm or -999 if invalid
+ * - distance: Distance in meters from 7-segment display or -1.0 if invalid
+ * - signal_strength: Reserved field (set to invalid value -99)
  * - timestamp: Unix timestamp of last update
  * - signal_detected: True if any signal is detected
  * - bearing_valid: True if bearing measurement is valid
  * - distance_valid: True if distance measurement is valid
  * 
  * @section Operation Modes
- * - Real Mode: Reads actual GPIO pins for bearing, distance, and RSSI
+ * - Real Mode: Reads actual GPIO pins for bearing and distance from 7-segment display
  * - Mock Mode: Generates realistic test data with configurable patterns
  * 
  * @section Data Validation
  * - Bearing values are validated against known directions
- * - Distance values are checked for reasonable ranges
- * - Signal strength is validated for typical RSSI ranges
+ * - Distance values are read from 7-segment display and checked for reasonable ranges
  * - Timestamps are updated on each read operation
  * 
  * @section Performance
@@ -381,12 +385,9 @@ float BeaconGpio_GetDistance(void)
 
 int8_t BeaconGpio_GetSignalStrength(void)
 {
-    if (!s_context.initialized) {
-        return -99;  // Changed from -999 to fit in int8_t range
-    }
-    
-    BeaconGpio_UpdateData();
-    return s_context.last_data.signal_strength;
+    // RSSI is not available - distance is read from 7-segment display instead
+    // Return invalid value for API compatibility
+    return -99;
 }
 
 void BeaconGpio_SetDebug(bool enable)
@@ -467,34 +468,93 @@ static int BeaconGpio_DecodeDigit(uint8_t segment_state)
     return -1; // Invalid digit
 }
 
+/**
+ * @brief Read distance from 7-segment display
+ * 
+ * @details This function reads the distance value from the 7-segment display
+ *          by multiplexing between two digits. It enables each digit sequentially,
+ *          reads the segment states, decodes the digit value, and combines them
+ *          to form a distance reading in meters.
+ * 
+ * @return float Distance in meters, or -1.0f if reading failed
+ * 
+ * @section Reading Process
+ * 1. Enable digit 1 (tens place) and disable digit 2
+ * 2. Wait for display to stabilize
+ * 3. Read all segment pins (A-G)
+ * 4. Decode segment pattern to digit value (0-9)
+ * 5. Disable digit 1
+ * 6. Enable digit 2 (ones/decimals place) and disable digit 1
+ * 7. Wait for display to stabilize
+ * 8. Read all segment pins again
+ * 9. Decode segment pattern to digit value (0-9)
+ * 10. Disable digit 2
+ * 11. Combine digits: digit1.digit2 meters
+ * 
+ * @section Distance Format
+ * The 7-segment display shows distance as two digits:
+ * - Digit 1: Tens and ones place (0-99)
+ * - Digit 2: Decimal place (0-9)
+ * - Result: digit1.digit2 meters (e.g., 15.5 meters)
+ * 
+ * @section Error Handling
+ * - Returns -1.0f if either digit fails to decode
+ * - Validates digit values are in range 0-9
+ * - Handles GPIO read errors gracefully
+ * 
+ * @see BeaconGpio_ReadSegmentPins()
+ * @see BeaconGpio_DecodeDigit()
+ */
 static float BeaconGpio_ReadDistance(void)
 {
     float distance = -1.0f;
+    int digit1 = -1;
+    int digit2 = -1;
     
-    // Read digit 1
-    lgGpioWrite(s_context.chip_handle, DIGIT_1_PIN, 1);
-    usleep(SEGMENT_READ_DELAY_US);
-    int digit1 = BeaconGpio_DecodeDigit(BeaconGpio_ReadSegmentPins());
-    lgGpioWrite(s_context.chip_handle, DIGIT_1_PIN, 0);
+    // Read digit 1 (tens/ones place) - enable digit 1, disable digit 2
+    lgGpioWrite(s_context.chip_handle, DIGIT_2_PIN, 0);  // Disable digit 2 first
+    lgGpioWrite(s_context.chip_handle, DIGIT_1_PIN, 1);   // Enable digit 1
+    usleep(SEGMENT_READ_DELAY_US);  // Wait for display to stabilize
     
-    if (digit1 < 0) {
+    int segment_state = BeaconGpio_ReadSegmentPins();
+    if (segment_state >= 0) {
+        digit1 = BeaconGpio_DecodeDigit((uint8_t)segment_state);
+    }
+    lgGpioWrite(s_context.chip_handle, DIGIT_1_PIN, 0);   // Disable digit 1
+    
+    if (digit1 < 0 || digit1 > 9) {
+        BeaconGpio_PrintDebug("Failed to decode digit 1 from 7-segment display\n");
         return -1.0f;
     }
     
-    // Read digit 2
-    lgGpioWrite(s_context.chip_handle, DIGIT_2_PIN, 1);
-    usleep(SEGMENT_READ_DELAY_US);
-    int digit2 = BeaconGpio_DecodeDigit(BeaconGpio_ReadSegmentPins());
-    lgGpioWrite(s_context.chip_handle, DIGIT_2_PIN, 0);
+    // Read digit 2 (decimal place) - enable digit 2, disable digit 1
+    lgGpioWrite(s_context.chip_handle, DIGIT_1_PIN, 0);   // Ensure digit 1 is disabled
+    lgGpioWrite(s_context.chip_handle, DIGIT_2_PIN, 1);   // Enable digit 2
+    usleep(SEGMENT_READ_DELAY_US);  // Wait for display to stabilize
     
-    if (digit2 < 0) {
+    segment_state = BeaconGpio_ReadSegmentPins();
+    if (segment_state >= 0) {
+        digit2 = BeaconGpio_DecodeDigit((uint8_t)segment_state);
+    }
+    lgGpioWrite(s_context.chip_handle, DIGIT_2_PIN, 0);   // Disable digit 2
+    
+    if (digit2 < 0 || digit2 > 9) {
+        BeaconGpio_PrintDebug("Failed to decode digit 2 from 7-segment display\n");
         return -1.0f;
     }
     
     // Calculate distance: digit1.digit2 meters
-    distance = digit1 + (digit2 * 0.1f);
+    // Example: digit1=15, digit2=5 -> distance = 15.5 meters
+    distance = (float)digit1 + ((float)digit2 * 0.1f);
     
-    BeaconGpio_PrintDebug("Distance: %d.%d meters\n", digit1, digit2);
+    // Validate distance is within reasonable range (0.0 to 99.9 meters)
+    if (distance < 0.0f || distance > 99.9f) {
+        BeaconGpio_PrintDebug("Distance out of range: %.1f meters\n", distance);
+        return -1.0f;
+    }
+    
+    BeaconGpio_PrintDebug("Distance from 7-segment display: %d.%d meters (%.1f m)\n", 
+                          digit1, digit2, distance);
     return distance;
 }
 
@@ -521,10 +581,9 @@ static int BeaconGpio_ReadBearing(void)
 
 static int8_t BeaconGpio_ReadSignalStrength(void)
 {
-    // For now, return a simulated RSSI value
-    // In a real implementation, this would read from an ADC
-    // or analog-to-digital converter connected to the RSSI pin
-    return -67; // Simulated -67 dBm signal strength
+    // RSSI is not available - distance is read from 7-segment display instead
+    // Return invalid value to indicate RSSI is not used
+    return -99;
 }
 
 /**
@@ -536,22 +595,21 @@ static int8_t BeaconGpio_ReadSignalStrength(void)
  *          unified interface for beacon data acquisition.
  * 
  * @section Operation Modes
- * - Real Mode: Reads actual GPIO pins for bearing, distance, and RSSI
+ * - Real Mode: Reads actual GPIO pins for bearing and distance from 7-segment display
  * - Mock Mode: Generates realistic test data with configurable patterns
  * 
  * @section Data Processing
  * 1. Update timestamp to current time
  * 2. Check operation mode (real vs mock)
  * 3. Read or generate bearing data
- * 4. Read or generate distance data
- * 5. Read or generate signal strength
+ * 4. Read or generate distance data from 7-segment display
+ * 5. Set signal strength to invalid (not used)
  * 6. Update validity flags
  * 7. Trigger callback if data changed
  * 
  * @section Real Mode Operation
  * - Reads bearing from 5 directional pins
- * - Decodes distance from 7-segment display
- * - Reads signal strength from RSSI pin
+ * - Decodes distance from 7-segment display (two digits: tens and ones/decimals)
  * - Validates all measurements
  * - Updates detection flags
  * 
@@ -563,8 +621,7 @@ static int8_t BeaconGpio_ReadSignalStrength(void)
  * 
  * @section Data Validation
  * - Bearing values are checked against known directions
- * - Distance values are validated for reasonable ranges
- * - Signal strength is bounded to typical RSSI ranges
+ * - Distance values are read from 7-segment display and validated for reasonable ranges
  * - Timestamps are updated on each call
  * 
  * @section Callback Triggering
@@ -600,7 +657,7 @@ static void BeaconGpio_UpdateData(void)
             s_context.last_data.bearing_valid = false;
         }
         
-        // Read distance
+        // Read distance from 7-segment display
         float distance = BeaconGpio_ReadDistance();
         if (distance >= 0.0f) {
             s_context.last_data.distance = distance;
@@ -609,8 +666,8 @@ static void BeaconGpio_UpdateData(void)
             s_context.last_data.distance_valid = false;
         }
         
-        // Read signal strength
-        s_context.last_data.signal_strength = BeaconGpio_ReadSignalStrength();
+        // Signal strength is not available - set to invalid value
+        s_context.last_data.signal_strength = -99;
         
         // Update signal detection based on bearing or distance
         if (s_context.last_data.bearing_valid || s_context.last_data.distance_valid) {
@@ -649,7 +706,7 @@ static void BeaconGpio_GenerateMockData(void)
     // Update beacon data with mock values
     s_context.last_data.bearing = pattern->bearing;
     s_context.last_data.distance = pattern->distance;
-    s_context.last_data.signal_strength = pattern->rssi;
+    s_context.last_data.signal_strength = -99; // RSSI not available
     s_context.last_data.bearing_valid = true;
     s_context.last_data.distance_valid = true;
     s_context.last_data.signal_detected = true;
@@ -657,16 +714,13 @@ static void BeaconGpio_GenerateMockData(void)
     
     // Add some randomness to make it more realistic
     s_context.last_data.distance += ((float)(rand() % 20 - 10)) / 10.0f; // ±1.0m variation
-    s_context.last_data.signal_strength += (rand() % 10 - 5); // ±5 dBm variation
     
     // Ensure values stay within reasonable bounds
     if (s_context.last_data.distance < 0.1f) s_context.last_data.distance = 0.1f;
-    if (s_context.last_data.signal_strength > -30) s_context.last_data.signal_strength = -30;
-    if (s_context.last_data.signal_strength < -100) s_context.last_data.signal_strength = -100;
     
-    printf("[BEACON_GPIO] Mock data: %s - Bearing: %d°, Distance: %.1fm, RSSI: %ddBm\n",
+    printf("[BEACON_GPIO] Mock data: %s - Bearing: %d°, Distance: %.1fm (from 7-segment display)\n",
            pattern->description, s_context.last_data.bearing, 
-           s_context.last_data.distance, s_context.last_data.signal_strength);
+           s_context.last_data.distance);
     
     s_mock_beacon_counter++;
 }

@@ -18,7 +18,6 @@
  * - Real-time GPIO reading using lgpio library
  * - Bearing detection from 5 directional pins
  * - Distance measurement from 7-segment display
- * - Signal strength (RSSI) monitoring
  * - Mock mode for testing without hardware
  * - Comprehensive error handling and validation
  * - Debug output for troubleshooting
@@ -28,21 +27,18 @@
  * - Bearing pins: 17, 27, 22, 5, 6 (270°, 325°, 0°, 45°, 90°)
  * - 7-segment display: 13, 19, 26, 21, 20, 16, 12, 25 (A-G, DP)
  * - Digit control: 8, 7 (enable pins for multiplexing)
- * - RSSI input: 18 (signal strength measurement)
  *
  * @section Hardware Interface
  * The interface supports:
  * - Digital input reading for bearing detection
- * - 7-segment display decoding for distance
- * - Analog input for signal strength (simulated)
- * - Multiplexed digit reading
+ * - 7-segment display decoding for distance measurement
+ * - Multiplexed digit reading from 7-segment display
  * - Edge detection for signal changes
  *
  * @section Mock Mode
  * Mock mode provides realistic test data including:
  * - 8 different beacon patterns
  * - Realistic bearing and distance values
- * - Signal strength variations
  * - Automatic pattern cycling
  * - Configurable update intervals
  *
@@ -88,9 +84,6 @@ extern "C" {
 #define DIGIT_1_PIN        8   // Digit 1 Enable
 #define DIGIT_2_PIN        7   // Digit 2 Enable
 
-// Signal strength measurement (RSSI) - analog input
-#define RSSI_PIN           18  // ADC pin for signal strength
-
 /* Exported types ------------------------------------------------------------*/
 
 /**
@@ -104,7 +97,7 @@ extern "C" {
  * @section Data Fields
  * - bearing: Bearing in degrees (0, 45, 90, 270, 325) or -1 if invalid
  * - distance: Distance in meters from 7-segment display or -1.0 if invalid
- * - signal_strength: RSSI value in dBm or -999 if invalid
+ * - signal_strength: Reserved field (not used, set to invalid value)
  * - timestamp: Unix timestamp of last update
  * - signal_detected: True if any beacon signal is detected
  * - bearing_valid: True if bearing measurement is valid
@@ -112,8 +105,7 @@ extern "C" {
  * 
  * @section Data Validation
  * - Bearing values are validated against known directions
- * - Distance values are checked for reasonable ranges (0.1m to 99.9m)
- * - Signal strength is bounded to typical RSSI ranges (-30 to -100 dBm)
+ * - Distance values are read from 7-segment display and checked for reasonable ranges (0.1m to 99.9m)
  * - Timestamps are updated on each read operation
  * 
  * @section Usage
@@ -130,7 +122,7 @@ extern "C" {
 typedef struct {
     uint8_t bearing;           // Bearing in degrees (0, 45, 90, 270, 325)
     float distance;            // Distance in meters from 7-segment display
-    int8_t signal_strength;    // RSSI value (-dBm)
+    int8_t signal_strength;    // Reserved field (not used, set to -99)
     uint32_t timestamp;       // Unix timestamp
     bool signal_detected;      // Beacon detection flag
     bool bearing_valid;        // Bearing measurement validity
@@ -147,8 +139,8 @@ typedef struct {
  * 
  * @param beacon_data Pointer to beacon data structure containing:
  *                   - bearing: Bearing in degrees (0, 45, 90, 270, 325)
- *                   - distance: Distance in meters
- *                   - signal_strength: RSSI value in dBm
+ *                   - distance: Distance in meters (from 7-segment display)
+ *                   - signal_strength: Reserved field (not used)
  *                   - timestamp: Unix timestamp
  *                   - signal_detected: Detection flag
  *                   - bearing_valid: Bearing validity flag
@@ -222,8 +214,10 @@ int BeaconGpio_GetBearing(void);
 float BeaconGpio_GetDistance(void);
 
 /**
- * @brief Get current signal strength (RSSI)
- * @return Signal strength in dBm, or -999 if invalid
+ * @brief Get current signal strength (deprecated - not used)
+ * @return Always returns -99 (invalid) as RSSI is not available
+ * @note This function is kept for API compatibility but always returns invalid value
+ *       Distance is read from 7-segment display instead
  */
 int8_t BeaconGpio_GetSignalStrength(void);
 
