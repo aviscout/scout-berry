@@ -1,3 +1,34 @@
 .idea
 env
 .DS_Store
+
+# Build directories
+build/
+builds/
+*/build/
+*/builds/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+*.cmake
+!CMakeLists.txt
+
+# Make files
+Makefile
+makefile
+*.make
+*.mk
+
+# Object files and executables
+*.o
+*.a
+*.so
+*.dylib
+a.out
+*.out
+
+# Compiled binaries
+bin/
+*/bin/
