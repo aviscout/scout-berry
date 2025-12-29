@@ -133,6 +133,14 @@ add_executable(get_drone_heartbeat
     # Note: GPIO sources excluded - heartbeat script doesn't need GPIO
 )
 
+# Create PSDK version checker executable (standalone tool for version checking)
+add_executable(get_psdk_version
+    scripts/get_psdk_version.c
+    ${MODULE_COMMON_SRC}
+    ${MODULE_HAL_SRC}
+    # Note: GPIO sources excluded - version checker doesn't need GPIO
+)
+
 # Set output directory for heartbeat script (inherits from EXECUTABLE_OUTPUT_PATH)
 # No need to set separately as it's already configured globally above
 
@@ -150,15 +158,17 @@ if(OPUS_LIB)
     target_link_libraries(${PROJECT_NAME} ${OPUS_LIB})
 endif()
 
-# Link PSDK library on Raspberry Pi (for both executables)
+# Link PSDK library on Raspberry Pi (for all executables)
 if(IS_RASPBERRY_PI)
     target_link_libraries(${PROJECT_NAME} payloadsdk)
     target_link_libraries(get_drone_heartbeat payloadsdk)
+    target_link_libraries(get_psdk_version payloadsdk)
 endif()
 
 # Link math library for PSDK (must be linked after PSDK)
 target_link_libraries(${PROJECT_NAME} m pthread)
 target_link_libraries(get_drone_heartbeat m pthread)
+target_link_libraries(get_psdk_version m pthread)
 
 # =============================================================================
 # Output Configuration
