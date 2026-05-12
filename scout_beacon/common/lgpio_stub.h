@@ -29,6 +29,7 @@ int lgGpiochipClose(int chip);
 
 /* GPIO pin operations */
 int lgGpioClaimInput(int handle, int lFlags, int gpio);
+int lgGpioClaimOutput(int handle, int lFlags, int gpio, int level);
 int lgGpioFree(int handle, int gpio);
 int lgGpioRead(int handle, int gpio);
 int lgGpioWrite(int handle, int gpio, int level);

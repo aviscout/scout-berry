@@ -80,6 +80,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <pthread.h>
+#include <sys/stat.h>
 
 #include "utils/util_misc.h"
 #include "monitor/sys_monitor.h"
@@ -130,6 +131,7 @@ static T_DjiReturnCode DjiUser_FillInUserInfo(T_DjiUserInfo *userInfo);
 static T_DjiReturnCode DjiUser_PrintConsole(const uint8_t *data, uint16_t dataLen);
 static T_DjiReturnCode DjiUser_LocalWrite(const uint8_t *data, uint16_t dataLen);
 static T_DjiReturnCode DjiUser_LocalWriteFsInit(const char *path);
+static int ScoutBeacon_EnsureLogDirectories(void);
 static void *DjiUser_MonitorTask(void *argument);
 static void DjiUser_NormalExitHandler(int signalNum);
 static void ScoutBeacon_BeaconCallback(BeaconData_t* beacon_data);
@@ -741,11 +743,14 @@ static T_DjiReturnCode DjiUser_PrepareSystemEnvironment(void)
         return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
     }
 
+#if (CONFIG_HARDWARE_CONNECTION != DJI_USE_ONLY_USB_BULK_DEVICE) && \
+    (CONFIG_HARDWARE_CONNECTION != DJI_USE_ONLY_NETWORK_DEVICE)
     returnCode = DjiPlatform_RegHalUartHandler(&uartHandler);
     if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
         printf("register hal uart handler error");
         return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
     }
+#endif
 
     if (DjiUser_LocalWriteFsInit(DJI_LOG_PATH) != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
         printf("file system init error");
@@ -786,6 +791,28 @@ static T_DjiReturnCode DjiUser_PrepareSystemEnvironment(void)
 #elif (CONFIG_HARDWARE_CONNECTION == DJI_USE_ONLY_UART)
     /*!< Attention: Only use uart hardware connection.
      */
+#elif (CONFIG_HARDWARE_CONNECTION == DJI_USE_ONLY_USB_BULK_DEVICE)
+    /*!< Attention: Only USB bulk hardware connection (no UART).
+     */
+    returnCode = DjiPlatform_RegHalUsbBulkHandler(&usbBulkHandler);
+    if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
+        printf("register hal usb bulk handler error");
+        return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
+    }
+#elif (CONFIG_HARDWARE_CONNECTION == DJI_USE_ONLY_NETWORK_DEVICE)
+    /*!< Attention: Only USB-network hardware connection (no UART).
+     */
+    returnCode = DjiPlatform_RegHalNetworkHandler(&networkHandler);
+    if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
+        printf("register hal network handler error");
+        return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
+    }
+
+    returnCode = DjiPlatform_RegSocketHandler(&socketHandler);
+    if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
+        printf("register osal socket handler error");
+        return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
+    }
 #endif
 
     returnCode = DjiPlatform_RegFileSystemHandler(&fileSystemHandler);
@@ -849,11 +876,26 @@ static T_DjiReturnCode DjiUser_LocalWrite(const uint8_t *data, uint16_t dataLen)
     return DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS;
 }
 
+static int ScoutBeacon_EnsureLogDirectories(void)
+{
+    if (mkdir(DJI_LOG_FOLDER_NAME, 0755) != 0 && errno != EEXIST) {
+        return -1;
+    }
+    if (mkdir(DJI_LOG_PATH, 0755) != 0 && errno != EEXIST) {
+        return -1;
+    }
+    return 0;
+}
+
 static T_DjiReturnCode DjiUser_LocalWriteFsInit(const char *path)
 {
     char logPath[DJI_LOG_PATH_MAX_SIZE];
     char logIndexPath[DJI_LOG_PATH_MAX_SIZE];
-    
+
+    if (ScoutBeacon_EnsureLogDirectories() != 0) {
+        return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
+    }
+
     snprintf(logPath, sizeof(logPath), "%s/psdk_log_%u.txt", path, (unsigned int)time(NULL));
     snprintf(logIndexPath, sizeof(logIndexPath), "%s", DJI_LOG_INDEX_FILE_NAME);
     

@@ -76,7 +76,7 @@ The application uses the following DJI SDK configuration:
 - **App ID**: 156341
 - **App Key**: 977ba9be54fbf8983270bc16651e6e4
 - **Developer Account**: robert.preater@papuaventures.com
-- **Baud Rate**: 460800
+- **Baud Rate**: 921600 (required for Mavic 3 Enterprise)
 
 ### GPIO Permissions
 

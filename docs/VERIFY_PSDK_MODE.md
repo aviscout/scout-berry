@@ -72,7 +72,7 @@ Some versions may require payload information:
 
 - **Application Name**: `AviScout`
 - **Application ID**: `156341`
-- **Baud Rate**: `460800` (or auto-detect)
+- **Baud Rate**: `921600` (required for Mavic 3 Enterprise)
 - **Payload Type**: `Custom Payload` or `PSDK Payload`
 
 ### Step 6: Apply and Save Settings
@@ -173,7 +173,7 @@ Once PSDK mode is verified in DJI Assistant 2:
    ls -la /dev/ttyUSB*
    sudo chmod 666 /dev/ttyUSB0
    ```
-3. **Verify baud rate** in `dji_sdk_app_info.h` is `460800`
+3. **Verify baud rate** in `dji_sdk_app_info.h` is `921600` (Mavic 3 Enterprise)
 4. **Check physical connections**:
    - E-Port adapter securely connected
    - UART/USB cable properly connected

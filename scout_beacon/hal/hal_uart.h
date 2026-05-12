@@ -44,9 +44,15 @@ extern "C" {
 #endif
 
 /* Exported constants --------------------------------------------------------*/
-//User can config dev based on there environmental conditions
+// PSDK serial transport.
+// DEV1: USB-to-UART bridge (CP2102) presented as /dev/ttyUSB0.
+//       This is the active path: drone E-Port wired to a USB-serial adapter
+//       on the Pi rather than the GPIO header pins. udev keeps it at
+//       /dev/ttyUSB0 and the `aviscout` user is in `dialout` for r/w access.
+// DEV2: Pi PL011 UART0 on GPIO header (kept as fallback if we ever go
+//       back to direct GPIO wiring with `dtoverlay=disable-bt`).
 #define LINUX_UART_DEV1    "/dev/ttyUSB0"
-#define LINUX_UART_DEV2    "/dev/ttyACM0"
+#define LINUX_UART_DEV2    "/dev/ttyAMA0"
 
 /* Exported types ------------------------------------------------------------*/
 

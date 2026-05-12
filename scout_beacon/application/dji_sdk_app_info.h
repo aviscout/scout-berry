@@ -38,9 +38,9 @@ extern "C" {
 #define USER_APP_NAME               "AviScout"
 #define USER_APP_ID                 "156341"
 #define USER_APP_KEY                "977ba9be54fbf8983270bc16651e6e4"
-#define USER_APP_LICENSE            "your_app_license"
+#define USER_APP_LICENSE            "jh3kHjo012K8sQ50cZy0ZkQb3pFYqpONSm0wz0HnPxG1F+wUZGhjN5RacQsFp4txOWLfbgTRg3QgiHuCWbX6rxFA80ricky/Tk4NgU5IMOR27xh2kILtwl14cocoE7ZLPnwVfhBRApzhE0ns/GpizrINJbxnO5LtAh1NCyXwjyOS0SZHTizfqfhG16sabbaWI/eSY+KmVL7+Zc+xMSulSA+JPS4xSA5nWCDNiMXcl5vUI9gBJ+cmk/fcHyQsymGKb7wXDZLzaOChFX4QX8dhZpArEIzBTCHk+swWxSTUQhIGXMDii3TE1iiNmwh+PvvfCBIaB/EfkquLQPgoXuZALQ=="
 #define USER_DEVELOPER_ACCOUNT      "robert.preater@papuaventures.com"
-#define USER_BAUD_RATE              "460800"
+#define USER_BAUD_RATE              "921600"
 
 /* Exported types ------------------------------------------------------------*/
 

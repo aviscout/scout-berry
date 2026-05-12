@@ -40,6 +40,13 @@ int lgGpioClaimInput(int handle, int lFlags, int gpio)
     return 0; // Success
 }
 
+int lgGpioClaimOutput(int handle, int lFlags, int gpio, int level)
+{
+    printf("[LGPIO_STUB] Claiming GPIO %d as output (flags: %d, level: %d)\n", gpio, lFlags, level);
+    (void)handle;
+    return 0;
+}
+
 int lgGpioFree(int handle, int gpio)
 {
     printf("[LGPIO_STUB] Freeing GPIO %d\n", gpio);

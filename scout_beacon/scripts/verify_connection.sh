@@ -293,7 +293,7 @@ test_uart_connection() {
         print_info "Current baud rate: $current_baud"
         
         # Expected baud rate from config
-        local expected_baud="460800"
+        local expected_baud="921600"
         if [[ "$current_baud" != "$expected_baud" ]]; then
             print_info "   Expected: $expected_baud (will be set by PSDK)"
         fi

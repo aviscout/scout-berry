@@ -86,6 +86,10 @@ Based on the most recent log file, the current PSDK version on the Raspberry Pi 
 
 **V3.14.0-beta.0-build.2296** (Build date: Nov 3, 2025)
 
+**Important Note**: The "-beta.0-" in the version string is part of DJI's standard version string format and does NOT indicate a beta release. Even stable releases show "-beta.0-" in the version string when `DJI_VERSION_BETA` is 0. This is the stable V3.14.0 release as confirmed by:
+- The `DJI_VERSION_BETA` value in `dji_version.h` is 0 (stable)
+- The README.md confirms "The latest release version of PSDK is 3.14.0" (stable)
+
 ## Troubleshooting
 
 ### No Log Files Found

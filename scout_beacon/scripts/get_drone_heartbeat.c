@@ -439,12 +439,15 @@ static T_DjiReturnCode DjiUser_PrepareSystemEnvironment(void)
         return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
     }
     
-    // Register UART handler
+    // Register UART handler (only for modes that use UART)
+#if (CONFIG_HARDWARE_CONNECTION != DJI_USE_ONLY_USB_BULK_DEVICE) && \
+    (CONFIG_HARDWARE_CONNECTION != DJI_USE_ONLY_NETWORK_DEVICE)
     returnCode = DjiPlatform_RegHalUartHandler(&uartHandler);
     if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
         printf("ERROR: Failed to register UART handler\n");
         return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
     }
+#endif
     
     // Initialize log file system
     if (DjiUser_LocalWriteFsInit(DJI_LOG_PATH) != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
@@ -481,6 +484,23 @@ static T_DjiReturnCode DjiUser_PrepareSystemEnvironment(void)
     }
 #elif (CONFIG_HARDWARE_CONNECTION == DJI_USE_ONLY_UART)
     // Only UART connection - no additional handlers needed
+#elif (CONFIG_HARDWARE_CONNECTION == DJI_USE_ONLY_USB_BULK_DEVICE)
+    // Only USB bulk - no UART
+    returnCode = DjiPlatform_RegHalUsbBulkHandler(&usbBulkHandler);
+    if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
+        printf("WARNING: Failed to register USB bulk handler\n");
+    }
+#elif (CONFIG_HARDWARE_CONNECTION == DJI_USE_ONLY_NETWORK_DEVICE)
+    // Only USB-network - no UART
+    returnCode = DjiPlatform_RegHalNetworkHandler(&networkHandler);
+    if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
+        printf("WARNING: Failed to register network handler\n");
+    }
+
+    returnCode = DjiPlatform_RegSocketHandler(&socketHandler);
+    if (returnCode != DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS) {
+        printf("WARNING: Failed to register socket handler\n");
+    }
 #endif
     
     // Register file system handler
@@ -647,7 +667,7 @@ static void DjiUser_NormalExitHandler(int signalNum)
  */
 static T_DjiReturnCode Heartbeat_CheckUartDevice(void)
 {
-    const char* uart_devices[] = {"/dev/ttyUSB0", "/dev/ttyACM0", NULL};
+    const char* uart_devices[] = {"/dev/ttyS0", "/dev/ttyAMA0", "/dev/ttyUSB0", "/dev/ttyACM0", NULL};
     bool device_found = false;
     const char* found_device = NULL;
     
@@ -668,7 +688,7 @@ static T_DjiReturnCode Heartbeat_CheckUartDevice(void)
     }
     
     if (!device_found) {
-        printf("  ERROR: No UART device found (/dev/ttyUSB0 or /dev/ttyACM0)\n");
+        printf("  ERROR: No UART device found (checked /dev/ttyS0, /dev/ttyAMA0, /dev/ttyUSB0, /dev/ttyACM0)\n");
         printf("  Please connect the UART device and try again\n");
         return DJI_ERROR_SYSTEM_MODULE_CODE_SYSTEM_ERROR;
     }

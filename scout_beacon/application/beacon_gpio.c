@@ -54,7 +54,11 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "beacon_gpio.h"
+#if defined(SCOUT_BEACON_USE_REAL_LGPIO)
+#include <lgpio.h>
+#else
 #include "lgpio_stub.h"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

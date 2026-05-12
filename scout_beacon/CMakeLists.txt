@@ -44,6 +44,7 @@ set(MODULE_COMMON_SRC
 file(GLOB_RECURSE MODULE_APP_SRC application/*.c)
 
 # Platform-specific HAL source files
+set(SCOUT_USE_REAL_LGPIO FALSE)
 if(IS_RASPBERRY_PI)
     # Use real HAL implementations on Raspberry Pi
     set(MODULE_HAL_SRC
@@ -51,18 +52,17 @@ if(IS_RASPBERRY_PI)
         hal/hal_network.c
         hal/hal_usb_bulk.c
     )
-    
-    # Use real lgpio implementation
-    set(MODULE_GPIO_SRC
-        common/lgpio_stub.c  # This will be replaced with real lgpio
-    )
-    
-    message(STATUS "-- Using lgpio for production")
+
     find_library(LGPIO_LIB lgpio)
     if(LGPIO_LIB)
-        message(STATUS "-- Found lgpio: ${LGPIO_LIB}")
+        # Link only liblgpio — do not mix lgpio_stub.c or ClaimOutput comes from the
+        # real library while ClaimInput resolves to the stub (broken hybrid).
+        set(MODULE_GPIO_SRC "")
+        set(SCOUT_USE_REAL_LGPIO TRUE)
+        message(STATUS "-- Found lgpio: ${LGPIO_LIB} (beacon GPIO uses system lgpio, no stub)")
     else()
-        message(WARNING "-- lgpio library not found, using stub")
+        set(MODULE_GPIO_SRC common/lgpio_stub.c)
+        message(WARNING "-- lgpio library not found; beacon GPIO uses stub only")
     endif()
 else()
     # Use stub implementations for development
@@ -124,6 +124,10 @@ add_executable(${PROJECT_NAME}
     ${MODULE_GPIO_SRC}
 )
 
+if(SCOUT_USE_REAL_LGPIO)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE SCOUT_BEACON_USE_REAL_LGPIO=1)
+endif()
+
 # Create heartbeat script executable (standalone tool for testing)
 # Note: Uses same include directories as main executable (defined above)
 add_executable(get_drone_heartbeat
@@ -148,8 +152,8 @@ add_executable(get_psdk_version
 # Library Linking
 # =============================================================================
 
-# Link lgpio library on Raspberry Pi (for main executable only)
-if(IS_RASPBERRY_PI AND LGPIO_LIB)
+# Link lgpio only when beacon code uses the real library (not the stub)
+if(SCOUT_USE_REAL_LGPIO AND LGPIO_LIB)
     target_link_libraries(${PROJECT_NAME} ${LGPIO_LIB})
 endif()
 

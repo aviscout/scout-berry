@@ -68,7 +68,7 @@ Some drone configurations may require payload information:
 
 - **Application Name**: "AviScout"
 - **Application ID**: "156341"
-- **Baud Rate**: 460800 (or auto-detect)
+- **Baud Rate**: 921600 (required for Mavic 3 Enterprise)
 
 ### Step 6: Apply Settings
 
@@ -293,7 +293,7 @@ grep -i "timeout\|failed" Logs/DJI/psdk_log_*.txt
    - Re-run application
 
 4. **Baud Rate Verification**
-   - Confirm baud rate is 460800 in application (`dji_sdk_app_info.h`)
+   - Confirm baud rate is 921600 in application (`dji_sdk_app_info.h`) for Mavic 3 Enterprise
    - Verify baud rate in DJI Assistant 2 matches
    - Try different baud rates if necessary (115200, 230400)
 

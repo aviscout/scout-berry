@@ -4,7 +4,7 @@
 
 **Date**: January 28, 2025  
 **Previous Version**: V3.9.2-beta.0-build.2125 (January 2024)  
-**New Version**: **V3.14.0-build.2296** (Latest)
+**New Version**: **V3.14.0-beta.0-build.2296** (Latest Stable Release)
 
 ## Update Status: ✅ COMPLETE
 
@@ -86,7 +86,9 @@ cd /home/aviscout/MVP/scout-berry/scout_beacon/build
 tail -20 Logs/DJI/psdk_log_*.txt | grep "Payload SDK Version"
 ```
 
-Should show: `Payload SDK Version : V3.14.0-build.2296`
+Should show: `Payload SDK Version : V3.14.0-beta.0-build.2296`
+
+**Note**: The "-beta.0-" in the version string is part of DJI's version string format and does NOT indicate a beta release. The `DJI_VERSION_BETA` value in the header file is 0, confirming this is the stable V3.14.0 release.
 
 ### 3. Test Full Application
 
